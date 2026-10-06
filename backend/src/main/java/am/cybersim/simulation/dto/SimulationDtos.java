@@ -54,7 +54,7 @@ public final class SimulationDtos {
 
     public record ScenarioInfo(Long id, String slug, String title, String summary, String description,
                                Difficulty difficulty, Category category, int estimatedMinutes,
-                               List<String> learningObjectives) {
+                               List<String> learningObjectives, int hintPenalty) {
     }
 
     public record ResourceView(String key, ResourceType type, String name, String region, String status,

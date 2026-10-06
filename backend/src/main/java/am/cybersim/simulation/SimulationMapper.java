@@ -67,7 +67,7 @@ public class SimulationMapper {
     public ScenarioInfo toScenarioInfo(Scenario sc) {
         return new ScenarioInfo(sc.getId(), sc.getSlug(), sc.getTitle(), sc.getSummary(), sc.getDescription(),
                 sc.getDifficulty(), sc.getCategory(), sc.getEstimatedMinutes(),
-                sc.getObjectives().stream().map(ScenarioObjective::getText).toList());
+                sc.getObjectives().stream().map(ScenarioObjective::getText).toList(), sc.getHintPenalty());
     }
 
     public EventView toEventView(SimulationEvent e, boolean reveal) {

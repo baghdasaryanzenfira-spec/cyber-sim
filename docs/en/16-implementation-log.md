@@ -16,12 +16,12 @@ Chronological technical history of the project. Status terms:
 | 5 | Simulation engine | done |
 | 6 | Scoring and progress | done |
 | 7 | AI integration | done (real API not runtime-verified) |
-| 8 | Frontend foundation | planned |
-| 9 | User simulation interface | planned |
-| 10 | Admin panel | backend done |
-| 11 | Testing | planned |
-| 12 | Docker/deployment | planned |
-| 13 | Documentation review | planned |
+| 8 | Frontend foundation | done |
+| 9 | User simulation interface | done |
+| 10 | Admin panel | done |
+| 11 | Testing | done (backend 74 tests; no automated UI tests) |
+| 12 | Docker/deployment | done |
+| 13 | Documentation review | in progress |
 
 ---
 
@@ -202,3 +202,54 @@ students), invalid scenario → 422 with field errors, AI variation stored inact
 analytics reflect a student run, admin cannot disable themselves. **TESTED.**
 
 **Test suite status after Step 10a:** `mvnw test` → **74 tests, 0 failures** (2026-10-06).
+
+---
+
+## Step 8–10 — Frontend: foundation, simulation interface, admin panel (2026-10-06)
+
+**Implemented:** React 19 + TypeScript SPA scaffolded with the official `create-vite` template (Vite 8), MUI 9 dark
+"SOC" theme, MUI X Charts, React Router 8, Axios.
+- `api/` — typed DTO mirror (`types.ts`), axios client with JWT interceptor and global 401 handling, endpoint functions.
+- `auth/` — `AuthContext` (token in localStorage, `/auth/me` on start), route guards `RequireAuth`, `RequireAdmin`.
+- Student pages: login, registration, dashboard (stats, score history, unfinished simulations), scenario list with
+  filters, briefing, **active simulation** (resources, logs & alerts with evidence board, AI assistant, action
+  catalogue with confirmation dialog, incident timeline, finish/abandon), result (score gauge, AI feedback, breakdown,
+  missed actions, evidence, explanation), progress & history (topic chart, AI recommendations).
+- Admin pages: dashboard, users (enable/disable, progress), scenarios (activate, AI variation), **scenario editor**
+  (General / Infrastructure / Logs & evidence / Actions & scoring / Hints / JSON tabs, generic row dialog,
+  validation errors from the backend), attempts (filters, paging, detail with AI interactions), analytics.
+
+**Why the newest library majors (Vite 8, MUI 9, React Router 8):** they were the current stable releases; using the
+official template and the TypeScript compiler as a safety net (only three type errors had to be fixed) avoided
+guessing new APIs.
+
+**Problems found during manual verification in Chrome (all fixed):**
+1. *Crash after requesting a hint* ("l is not a function"). Cause: `useEffect(() => el.scrollIntoView({behavior:'smooth'}))`
+   returned the value of `scrollIntoView`; current Chrome returns a Promise for smooth scrolling, which React then
+   tried to call as the effect clean-up function. Fix: block-bodied effect. Lesson: effects must never use an
+   expression body.
+2. *Admin row editor lost typed text* — the dialog re-initialised on every parent render because a new default object
+   and field list were created each time. Fix: the edited row is stored in state when the dialog opens.
+3. *Cramped three-column simulation layout at ~1150 px width* — three columns now only from the `xl` breakpoint, log
+   lines use a two-line layout.
+4. Single-point score chart without a marker; admin redirected to `/` instead of `/admin` after login; token cleared on
+   network errors during backend restart. All fixed.
+5. `index.html` was saved in the wrong encoding by a PowerShell command, which broke the Vite build ("stream did not
+   contain valid UTF-8"); rewritten as UTF-8.
+
+**Testing:** `npm run build` (type check + production build) passes. Manual UI verification in Chrome: login,
+dashboard, scenarios, briefing, start, action, evidence/logs, hint, finish, result, admin dashboard, scenario list,
+editor, analytics — **VERIFIED**.
+
+## Step 12 — Docker / deployment (2026-10-06)
+
+**Implemented:** multi-stage `backend/Dockerfile` (JDK build → JRE runtime, non-root), `frontend/Dockerfile`
+(Node build → nginx), `frontend/nginx.conf` (SPA routing, `/api` reverse proxy, security headers),
+`docker-compose.yml` (postgres with health check, backend, frontend, optional `localstack` profile),
+`.env.example` (all variables, no secrets; mandatory secrets enforced with `${VAR:?}`).
+
+**Verification:** `docker compose up --build -d` → Flyway migration, seeding and demo users confirmed in the logs; an
+end-to-end smoke script (login → simulation → hint → question → completion → admin analytics → 403 for students on
+the admin API) passed through nginx. The score of the scripted run (58) matched the hand calculation. **VERIFIED.**
+
+**Problem:** a Docker BuildKit cache error ("lease does not exist") on one rebuild — transient, a retry succeeded.

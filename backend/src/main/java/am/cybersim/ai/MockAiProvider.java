@@ -115,6 +115,10 @@ public class MockAiProvider implements AiProvider {
         Map<String, String> concepts = Map.ofEntries(
                 Map.entry("brute", "A brute-force attack tries many passwords automatically. The typical sign is many "
                         + "failed logins from one source in a short time; it becomes an incident when a login succeeds."),
+                Map.entry("terminat", "Terminating or deleting a compromised resource destroys evidence (memory, disk, "
+                        + "logs) that you need to understand the attack, and may cause an outage. Prefer isolation first."),
+                Map.entry("delet", "Deleting resources or accounts during an incident destroys evidence and can hurt "
+                        + "legitimate users. Disable, isolate or restrict instead, and preserve data for the investigation."),
                 Map.entry("isolat", "Isolating a resource (e.g. a quarantine security group) cuts the attacker off while "
                         + "keeping disk and memory available for forensic analysis — unlike deleting or terminating it."),
                 Map.entry("mfa", "Multi-factor authentication requires a second factor besides the password, so a stolen "
@@ -176,7 +180,7 @@ public class MockAiProvider implements AiProvider {
                 .map(p -> "\"" + p.label() + "\"" + (p.duplicate() ? " was repeated." : " was not needed for this incident."))
                 .distinct().toList();
         String verdict = score.scorePercent() >= 85 ? "Excellent work" : score.scorePercent() >= 60 ? "Good work"
-                : "A solid start";
+                : score.scorePercent() >= 35 ? "A solid start" : "Keep practising";
         String summary = verdict + " — you scored " + score.scorePercent() + "/100. You completed "
                 + strengths.size() + " of " + (strengths.size() + score.missedActions().size())
                 + " key response steps" + (improvements.isEmpty() ? "." : "; review the improvements below.");
