@@ -1,0 +1,227 @@
+{
+  "slug": "ssh-bruteforce-vm",
+  "title": "SSH Brute-Force Attack on a Cloud VM",
+  "summary": "A production web server with SSH open to the internet shows thousands of failed logins and suspicious outbound traffic. Find out what happened and respond.",
+  "description": "You are the on-call security analyst for a small company that runs its web shop in the cloud.\n\nAt 02:40 the cloud threat-detection service raised two high-severity alerts for the production web server web-prod-01: a burst of failed SSH logins from a single external IP address, and later outbound connections from the server to an unknown host on port 4444. The CPU of the server has been close to 100% for the last quarter of an hour.\n\nYour task is to investigate the available logs, decide whether the server is compromised, identify the accounts involved and contain the incident without destroying evidence. Finally, recommend measures that prevent the same attack in the future.",
+  "difficulty": "BEGINNER",
+  "category": "NETWORK",
+  "estimatedMinutes": 15,
+  "incidentExplanation": "The security group sg-web-prod allowed SSH (22/tcp) from the whole internet and the local account 'admin' used a weak password. The attacker at 203.0.113.45 ran an automated password-guessing attack (1,284 attempts in ten minutes) and finally logged in as 'admin'. Within minutes they created a second account 'sysbackup' with UID 0 for persistence, started a crypto-miner disguised as a kernel worker (/tmp/.x/kworkerds) and opened a connection to a command-and-control server at 203.0.113.50:4444. The healthy server app-prod-02 was never touched.",
+  "recommendedSolution": "1. Read the SSH authentication log and the VPC flow logs to confirm the brute-force pattern and the successful login from the attacking IP.\n2. Classify the incident as an SSH brute-force compromise and mark web-prod-01 as compromised.\n3. Isolate web-prod-01 with a quarantine security group (do NOT terminate it — memory and disk are evidence).\n4. Disable the compromised 'admin' account and delete the backdoor account 'sysbackup'.\n5. Rotate all credentials and SSH keys that existed on the host; switch to key-based SSH only.\n6. Restrict SSH in sg-web-prod to the corporate VPN range (or use a bastion / session manager).",
+  "hintPenalty": 2,
+  "outOfOrderPenalty": 5,
+  "active": true,
+  "learningObjectives": [
+    "Recognise the log pattern of an SSH brute-force attack followed by a successful login",
+    "Correlate host logs, network flow logs and threat-detection alerts",
+    "Contain a compromised VM while preserving forensic evidence",
+    "Eradicate attacker persistence (backdoor accounts) and rotate credentials",
+    "Harden network access to administrative ports"
+  ],
+  "resources": [
+    {
+      "key": "vm-web-01", "type": "VIRTUAL_MACHINE", "name": "web-prod-01", "region": "eu-central-1", "status": "RUNNING",
+      "properties": { "publicIp": "198.51.100.24", "privateIp": "10.0.1.15", "os": "Ubuntu 22.04 LTS", "instanceType": "t3.medium", "securityGroup": "sg-web-prod" }
+    },
+    {
+      "key": "vm-app-02", "type": "VIRTUAL_MACHINE", "name": "app-prod-02", "region": "eu-central-1", "status": "RUNNING",
+      "properties": { "privateIp": "10.0.2.22", "os": "Ubuntu 22.04 LTS", "instanceType": "t3.large", "securityGroup": "sg-app-prod" }
+    },
+    {
+      "key": "sg-web", "type": "SECURITY_GROUP", "name": "sg-web-prod", "region": "eu-central-1", "status": "ACTIVE",
+      "properties": { "inbound": ["22/tcp from 0.0.0.0/0", "443/tcp from 0.0.0.0/0"], "attachedTo": "web-prod-01" }
+    },
+    {
+      "key": "user-admin", "type": "IAM_USER", "name": "admin (local account on web-prod-01)", "region": "eu-central-1", "status": "ACTIVE",
+      "properties": { "authentication": "password", "sudo": true, "lastPasswordChange": "2024-03-11" }
+    },
+    {
+      "key": "user-sysbackup", "type": "IAM_USER", "name": "sysbackup (local account on web-prod-01)", "region": "eu-central-1", "status": "ACTIVE",
+      "properties": { "uid": 0, "createdBy": "unknown", "sudo": true }
+    }
+  ],
+  "events": [
+    {
+      "key": "log-app-health", "offsetSeconds": 120, "type": "LOG", "source": "cloud-monitoring", "severity": "INFO", "resourceKey": "vm-app-02",
+      "message": "Health check app-prod-02: HTTP 200 OK, latency 41 ms", "details": { "check": "https://app-prod-02/health" },
+      "evidence": false
+    },
+    {
+      "key": "alert-ssh-bruteforce", "offsetSeconds": 615, "type": "ALERT", "source": "threat-detection", "severity": "HIGH", "resourceKey": "vm-web-01",
+      "message": "UnauthorizedAccess:EC2/SSHBruteForce — 1,284 failed SSH logins against web-prod-01 from 203.0.113.45 within 10 minutes",
+      "details": { "sourceIp": "203.0.113.45", "attempts": 1284, "targetPort": 22 },
+      "evidence": true, "evidenceNote": "Shows the brute-force pattern: a very high number of failed logins from one external IP address."
+    },
+    {
+      "key": "log-cpu-high", "offsetSeconds": 1300, "type": "LOG", "source": "cloud-monitoring", "severity": "MEDIUM", "resourceKey": "vm-web-01",
+      "message": "CPU utilisation of web-prod-01 above 95% for 15 minutes (normal: 12%)", "details": { "cpuPercent": 98 },
+      "evidence": true, "evidenceNote": "Sudden sustained CPU load on a web server is a typical sign of crypto-mining malware."
+    },
+    {
+      "key": "alert-c2-traffic", "offsetSeconds": 1500, "type": "ALERT", "source": "threat-detection", "severity": "HIGH", "resourceKey": "vm-web-01",
+      "message": "Backdoor:EC2/C&CActivity — web-prod-01 is communicating with 203.0.113.50 on port 4444",
+      "details": { "destinationIp": "203.0.113.50", "destinationPort": 4444 },
+      "evidence": true, "evidenceNote": "Outbound connection to a known command-and-control pattern — the host is under attacker control."
+    },
+    {
+      "key": "auth-failed-root", "offsetSeconds": 15, "type": "LOG", "source": "auth.log", "severity": "LOW", "resourceKey": "vm-web-01",
+      "message": "sshd[2211]: Failed password for root from 203.0.113.45 port 50122 ssh2",
+      "details": { "user": "root", "sourceIp": "203.0.113.45" },
+      "evidence": false, "revealedByActionKey": "inspect-auth-log"
+    },
+    {
+      "key": "auth-failed-admin", "offsetSeconds": 590, "type": "LOG", "source": "auth.log", "severity": "MEDIUM", "resourceKey": "vm-web-01",
+      "message": "sshd[2987]: Failed password for admin from 203.0.113.45 port 61002 ssh2 (message repeated 1,193 times)",
+      "details": { "user": "admin", "sourceIp": "203.0.113.45", "repeated": 1193 },
+      "evidence": true, "evidenceNote": "The attacker focused on the 'admin' account — a password-guessing attack against a real user.",
+      "revealedByActionKey": "inspect-auth-log"
+    },
+    {
+      "key": "auth-success-admin", "offsetSeconds": 612, "type": "LOG", "source": "auth.log", "severity": "CRITICAL", "resourceKey": "vm-web-01",
+      "message": "sshd[3120]: Accepted password for admin from 203.0.113.45 port 61544 ssh2",
+      "details": { "user": "admin", "sourceIp": "203.0.113.45", "method": "password" },
+      "evidence": true, "evidenceNote": "A successful login from the attacking IP right after the failures proves the account is compromised.",
+      "revealedByActionKey": "inspect-auth-log"
+    },
+    {
+      "key": "auth-useradd", "offsetSeconds": 700, "type": "LOG", "source": "auth.log", "severity": "CRITICAL", "resourceKey": "vm-web-01",
+      "message": "useradd[3301]: new user: name=sysbackup, UID=0, GID=0, home=/home/sysbackup, shell=/bin/bash",
+      "details": { "newUser": "sysbackup", "uid": 0 },
+      "evidence": true, "evidenceNote": "A new root-equivalent account created minutes after the break-in is attacker persistence (backdoor).",
+      "revealedByActionKey": "inspect-auth-log"
+    },
+    {
+      "key": "auth-sudo", "offsetSeconds": 720, "type": "LOG", "source": "auth.log", "severity": "HIGH", "resourceKey": "vm-web-01",
+      "message": "sudo: admin : TTY=pts/0 ; PWD=/home/admin ; USER=root ; COMMAND=/usr/sbin/usermod -aG sudo sysbackup",
+      "details": { "user": "admin", "command": "usermod -aG sudo sysbackup" },
+      "evidence": false, "revealedByActionKey": "inspect-auth-log"
+    },
+    {
+      "key": "flow-ssh-burst", "offsetSeconds": 300, "type": "LOG", "source": "vpc-flow-logs", "severity": "MEDIUM", "resourceKey": "vm-web-01",
+      "message": "ACCEPT 203.0.113.45:* -> 10.0.1.15:22 TCP — 25,840 packets in 10 min",
+      "details": { "action": "ACCEPT", "packets": 25840, "dstPort": 22 },
+      "evidence": true, "evidenceNote": "Network-level confirmation of the brute-force: SSH was reachable from the internet.",
+      "revealedByActionKey": "inspect-flow-logs"
+    },
+    {
+      "key": "flow-c2", "offsetSeconds": 1400, "type": "LOG", "source": "vpc-flow-logs", "severity": "HIGH", "resourceKey": "vm-web-01",
+      "message": "ACCEPT 10.0.1.15:39822 -> 203.0.113.50:4444 TCP — 48.2 MB sent",
+      "details": { "action": "ACCEPT", "bytesOut": 50541363, "dstPort": 4444 },
+      "evidence": true, "evidenceNote": "Large outbound transfer to a non-standard port — command-and-control or data exfiltration.",
+      "revealedByActionKey": "inspect-flow-logs"
+    },
+    {
+      "key": "proc-miner", "offsetSeconds": 900, "type": "LOG", "source": "host-process-list", "severity": "CRITICAL", "resourceKey": "vm-web-01",
+      "message": "PID 4412 /tmp/.x/kworkerds (user: sysbackup) CPU 97% — started 02:55, connects to 203.0.113.50:4444",
+      "details": { "pid": 4412, "path": "/tmp/.x/kworkerds", "user": "sysbackup" },
+      "evidence": true, "evidenceNote": "A process in a hidden /tmp directory imitating a kernel thread name, owned by the backdoor account: malware.",
+      "revealedByActionKey": "inspect-process-list"
+    },
+    {
+      "key": "app-logs-clean", "offsetSeconds": 1600, "type": "LOG", "source": "app-prod-02/syslog", "severity": "INFO", "resourceKey": "vm-app-02",
+      "message": "app-prod-02: no authentication anomalies in the last 24 hours; only key-based logins from the bastion host",
+      "details": {},
+      "evidence": false, "revealedByActionKey": "inspect-app-logs"
+    }
+  ],
+  "actions": [
+    {
+      "key": "inspect-auth-log", "label": "Inspect SSH authentication log on web-prod-01", "description": "Retrieve /var/log/auth.log of web-prod-01 for the last two hours.",
+      "phase": "INVESTIGATION", "category": "INSPECT", "targetResourceKey": "vm-web-01", "outcome": "EXPECTED", "points": 10,
+      "resultMessage": "Retrieved /var/log/auth.log from web-prod-01 (last 2 hours, 1,312 lines). New log entries were added to the timeline.",
+      "explanation": "The authentication log is the primary source to confirm whether a brute-force attempt actually succeeded."
+    },
+    {
+      "key": "inspect-flow-logs", "label": "Review VPC flow logs for web-prod-01", "description": "Query network flow records to and from 10.0.1.15.",
+      "phase": "INVESTIGATION", "category": "INSPECT", "targetResourceKey": "vm-web-01", "outcome": "EXPECTED", "points": 5,
+      "resultMessage": "Flow log query finished: 2 notable flows found.",
+      "explanation": "Flow logs show which connections were possible and reveal outbound command-and-control traffic."
+    },
+    {
+      "key": "inspect-process-list", "label": "List running processes on web-prod-01", "description": "Collect a process snapshot through the cloud run-command agent (read-only).",
+      "phase": "INVESTIGATION", "category": "INSPECT", "targetResourceKey": "vm-web-01", "outcome": "EXPECTED", "points": 5,
+      "resultMessage": "Process snapshot collected from web-prod-01.",
+      "explanation": "A process snapshot identifies the malware and links it to the backdoor account."
+    },
+    {
+      "key": "inspect-app-logs", "label": "Inspect logs of app-prod-02", "description": "Retrieve system logs of the application server app-prod-02.",
+      "phase": "INVESTIGATION", "category": "INSPECT", "targetResourceKey": "vm-app-02", "outcome": "NEUTRAL", "points": 0,
+      "resultMessage": "Retrieved syslog of app-prod-02.",
+      "explanation": "No alert pointed to app-prod-02. Checking it is not wrong, but it costs time during an active incident."
+    },
+    {
+      "key": "identify-bruteforce", "label": "Classify incident: SSH brute-force leading to compromise", "description": "Record the incident type in the incident ticket.",
+      "phase": "INVESTIGATION", "category": "IDENTIFY", "outcome": "EXPECTED", "points": 15, "prerequisiteActionKey": "inspect-auth-log",
+      "resultMessage": "Incident ticket INC-2026-0412 classified as 'SSH brute-force / host compromise'.",
+      "explanation": "Correct classification determines the response playbook. It should be based on the evidence in auth.log, not only on the alert."
+    },
+    {
+      "key": "identify-compromised-vm", "label": "Mark web-prod-01 as compromised", "description": "Tag web-prod-01 as compromised in the asset inventory.",
+      "phase": "INVESTIGATION", "category": "IDENTIFY", "targetResourceKey": "vm-web-01", "outcome": "EXPECTED", "points": 15,
+      "prerequisiteActionKey": "inspect-auth-log", "effectStatus": "COMPROMISED",
+      "resultMessage": "web-prod-01 tagged as COMPROMISED.",
+      "explanation": "web-prod-01 had a successful login from the attacker, a backdoor account and malware."
+    },
+    {
+      "key": "identify-app-vm", "label": "Mark app-prod-02 as compromised", "description": "Tag app-prod-02 as compromised in the asset inventory.",
+      "phase": "INVESTIGATION", "category": "IDENTIFY", "targetResourceKey": "vm-app-02", "outcome": "HARMFUL", "points": -5,
+      "resultMessage": "app-prod-02 tagged as COMPROMISED.",
+      "explanation": "False positive: there is no evidence against app-prod-02. Wrong classification triggers unnecessary response work."
+    },
+    {
+      "key": "isolate-vm", "label": "Isolate web-prod-01 (quarantine security group)", "description": "Replace the security groups of web-prod-01 with a quarantine group that blocks all traffic except forensic access.",
+      "phase": "RESPONSE", "category": "CONTAIN", "targetResourceKey": "vm-web-01", "outcome": "EXPECTED", "points": 20,
+      "prerequisiteActionKey": "identify-compromised-vm", "effectStatus": "ISOLATED",
+      "resultMessage": "web-prod-01 moved to sg-quarantine. Inbound and outbound traffic blocked; connection to 203.0.113.50 dropped.",
+      "explanation": "Isolation stops the attacker and the C2 traffic while keeping memory and disk available for forensics."
+    },
+    {
+      "key": "terminate-vm", "label": "Terminate web-prod-01 immediately", "description": "Delete the virtual machine and its disk.",
+      "phase": "RESPONSE", "category": "CONTAIN", "targetResourceKey": "vm-web-01", "outcome": "HARMFUL", "points": -10,
+      "effectStatus": "TERMINATED",
+      "resultMessage": "web-prod-01 terminated. Root volume deleted.",
+      "explanation": "Destructive: terminating the VM destroys forensic evidence (memory, disk, malware sample) and causes an outage. Isolate instead."
+    },
+    {
+      "key": "disable-admin-account", "label": "Disable the compromised 'admin' account", "description": "Lock the local 'admin' account and kill its sessions.",
+      "phase": "RESPONSE", "category": "CONTAIN", "targetResourceKey": "user-admin", "outcome": "EXPECTED", "points": 10,
+      "prerequisiteActionKey": "inspect-auth-log", "effectStatus": "DISABLED",
+      "resultMessage": "Account 'admin' locked, active sessions terminated.",
+      "explanation": "The attacker knows the password of 'admin'; the account must be disabled immediately."
+    },
+    {
+      "key": "remove-backdoor-user", "label": "Delete backdoor account 'sysbackup'", "description": "Remove the account created by the attacker after preserving its home directory as evidence.",
+      "phase": "RESPONSE", "category": "ERADICATE", "targetResourceKey": "user-sysbackup", "outcome": "EXPECTED", "points": 5,
+      "prerequisiteActionKey": "inspect-auth-log", "effectStatus": "DELETED",
+      "resultMessage": "Home directory archived to the evidence bucket; account 'sysbackup' deleted.",
+      "explanation": "'sysbackup' is attacker persistence. Leaving it would allow the attacker to return."
+    },
+    {
+      "key": "rotate-credentials", "label": "Rotate credentials and SSH keys; enforce key-only SSH", "description": "Rotate every password and key that existed on web-prod-01 and disable SSH password authentication on the fleet.",
+      "phase": "RESPONSE", "category": "RECOVER", "outcome": "EXPECTED", "points": 10,
+      "prerequisiteActionKey": "disable-admin-account",
+      "resultMessage": "Rotation ticket created; PasswordAuthentication=no rolled out to all Linux hosts.",
+      "explanation": "Anything stored on a compromised host must be considered leaked. Password-based SSH made the brute-force possible."
+    },
+    {
+      "key": "restrict-ssh", "label": "Restrict SSH in sg-web-prod to the VPN range", "description": "Replace '22/tcp from 0.0.0.0/0' with '22/tcp from 10.8.0.0/16 (VPN)'.",
+      "phase": "RESPONSE", "category": "HARDEN", "targetResourceKey": "sg-web", "outcome": "EXPECTED", "points": 5,
+      "effectStatus": "RESTRICTED",
+      "resultMessage": "sg-web-prod updated: SSH allowed only from 10.8.0.0/16.",
+      "explanation": "Administrative ports should never be open to the whole internet."
+    },
+    {
+      "key": "reboot-app-vm", "label": "Reboot app-prod-02", "description": "Restart the application server.",
+      "phase": "RESPONSE", "category": "RECOVER", "targetResourceKey": "vm-app-02", "outcome": "HARMFUL", "points": -5,
+      "effectStatus": "REBOOTING",
+      "resultMessage": "app-prod-02 is rebooting. The web shop API is unavailable for ~3 minutes.",
+      "explanation": "Unnecessary downtime of a healthy system that was not involved in the incident."
+    }
+  ],
+  "hints": [
+    "Start where the alerts point: which resource appears in both high-severity alerts, and which log would show who logged into it?",
+    "Failed logins alone are only an attempt. Look for a successful login from the same source IP — and for what that account did next.",
+    "Once you know the host is compromised, contain it without destroying evidence, then deal with every account the attacker used or created.",
+    "Ask yourself how the attacker could reach the server at all: which network rule allowed it?"
+  ]
+}

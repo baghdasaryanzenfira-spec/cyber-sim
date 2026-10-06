@@ -9,16 +9,16 @@ Chronological technical history of the project. Status terms:
 | Phase | Content | Status |
 |-------|---------|--------|
 | 0 | Project analysis and planning | done |
-| 1 | Repository/project structure | in progress |
-| 2 | Database and backend foundation | planned |
-| 3 | Authentication and authorization | planned |
-| 4 | Scenario management | planned |
-| 5 | Simulation engine | planned |
-| 6 | Scoring and progress | planned |
-| 7 | AI integration | planned |
+| 1 | Repository/project structure | done |
+| 2 | Database and backend foundation | done |
+| 3 | Authentication and authorization | done |
+| 4 | Scenario management | done |
+| 5 | Simulation engine | done |
+| 6 | Scoring and progress | done |
+| 7 | AI integration | done (real API not runtime-verified) |
 | 8 | Frontend foundation | planned |
 | 9 | User simulation interface | planned |
-| 10 | Admin panel | planned |
+| 10 | Admin panel | backend done |
 | 11 | Testing | planned |
 | 12 | Docker/deployment | planned |
 | 13 | Documentation review | planned |
@@ -114,3 +114,91 @@ loaded inside the service transaction, which makes queries explicit and avoids N
 registration, role escalation attempt, duplicate e-mail (case-insensitive), validation errors, login,
 `/me` with token, wrong password vs unknown e-mail, disabled account, missing token → JSON 401,
 tampered token → 401. **TESTED: 10/10 passing** (`mvnw test`, 2026-10-06).
+
+---
+
+## Step 4 — Scenario management (2026-10-06)
+
+**Implemented:** scenario entities (`Scenario` + objectives, resources, events, actions, hints), `ScenarioDefinition`
+(one JSON document per scenario), `ScenarioDefinitionValidator` (cross-reference rules), `ScenarioMapper`,
+`ScenarioService`, student catalogue endpoints, `ScenarioSeeder` and three fully authored scenarios in
+`resources/scenarios/*.json` (SSH brute-force, compromised credentials, public bucket — each with exactly 100
+points of expected actions, harmful and neutral distractor actions, progressive log disclosure and 4 hints).
+
+**Why one document for seed files, admin editor and AI output:** a single validator protects all three entry points;
+see ADR-5.
+
+**Problems encountered:**
+- Hibernate executes inserts before orphan deletes, so replacing children with the same keys violated the unique
+  constraints. *Solution:* clear the collections and `flush()` before adding the new children (`ScenarioService.update`).
+- Unit tests used one-letter action keys which the key pattern rejects; the cross-reference rules were never reached.
+  *Solution:* realistic keys in tests (the validator was right).
+
+**Testing:** `ScenarioDefinitionValidatorTest` (9 unit tests), `ScenarioCatalogIntegrationTest` (5) — includes a check
+that the briefing JSON contains no solution data. **TESTED.**
+
+## Step 5 — Simulation engine (2026-10-06)
+
+**Implemented:** `SimulationStatus`, `SimulationStateMachine` (pure transition functions), entities `Simulation`,
+`SimulationResource`, `SimulationEvent`, `SimulationAction`, `SimulationResult`; `SimulationEngine` (start, apply
+action, reveal events, effects, analyst timeline events, evidence flags); `SimulationService`; `SimulationController`.
+
+**Key decisions:**
+- *Engine without persistence:* the engine only mutates the aggregate; the service handles transactions and
+  ownership → the engine is unit-tested without a database (`SimulationEngineTest`).
+- *Snapshots on actions:* label, outcome and points are copied into `simulation_actions`, so history is stable.
+- *Optimistic locking* (`lock_version`) on `simulations` protects against double-clicks/parallel requests.
+- *Information hiding:* student DTOs contain `null` for outcome/points/evidence until completion.
+- *Partial unique index* guarantees at most one unfinished attempt per student and scenario.
+
+**Problem encountered:** `complete()` called the `@Transactional` method `result()` on `this`; Spring's proxy was
+bypassed and the lazy scenario failed to load (`LazyInitializationException`). *Solution:* explicit
+`TransactionTemplate` for that step (documented in the code).
+
+**Testing:** `SimulationStateMachineTest` (15), `SimulationEngineTest` (8), `SimulationFlowIntegrationTest` (7 —
+perfect run = 100, mistakes run = exactly 13 points as calculated by hand, invalid transitions = 409, ownership = 404).
+**TESTED.**
+
+## Step 6 — Scoring and progress (2026-10-06)
+
+**Implemented:** `ScoringEngine` (pure, deterministic), `ScoreResult`; `ProgressService` / `ProgressController`
+(`/api/progress/me`, `/api/progress/me/recommendations`).
+
+**Why progress is computed, not stored:** a separate progress table would duplicate data already present in
+`simulations` + `simulation_results` and could become inconsistent; at this scale computing it is fast.
+
+**Testing:** `ScoringEngineTest` (5) + progress assertions in `AdminIntegrationTest`. **TESTED.**
+
+## Step 7 — AI integration (2026-10-06)
+
+**Implemented:** `AiProvider` interface; `ClaudeAiProvider` (official Anthropic Java SDK 2.68.0, model
+`claude-opus-5-5` by default, configurable effort/timeout/max tokens, structured outputs for JSON tasks, server-side
+refusal fallback, refusal/truncation detection); `MockAiProvider` (rule-based, progress-aware); `AiConfig`
+(provider selection); `AiPromptBuilder`; `AiOutputValidator` (length limits, JSON parsing, solution-leak check);
+`AiGateway` (hard timeout on a virtual thread, fallback, audit log); `AiInteraction` audit entity; `TutorService`
+(hint, question, feedback, recommendations); `ScenarioVariationService` (validated AI variations);
+`SimulationAssistantService` (hint counter + penalty decided by the application).
+
+**Why no DB transaction during AI calls:** the service builds an immutable `SimulationSnapshot` in a short
+transaction, calls the AI without holding a connection, then writes the result in a second short transaction.
+
+**Why `sealed interface AiPayload`:** every provider must handle every task type — the compiler enforces it
+through exhaustive `switch` pattern matching.
+
+**Testing:** `AiGatewayTest` (6: mock primary, valid AI answer, exception → fallback, invalid JSON → fallback,
+solution-leaking hint → fallback, 10-second provider vs 1-second timeout → fallback in ~3 s), `MockAiProviderTest` (3).
+**TESTED with the mock provider and a mocked Claude provider. The real Claude API call is implemented but not
+runtime-verified because no `ANTHROPIC_API_KEY` is configured in this environment.**
+
+## Step 10a — Admin backend and analytics (2026-10-06)
+
+**Implemented:** `AdminService`, `AdminController` (`/api/admin/**`: users, user detail with progress, enable/disable,
+scenario CRUD + activation + AI variation, attempts list with filters/paging, attempt detail with AI interactions,
+analytics overview and common mistakes); `AnalyticsService` using `JdbcClient` and PostgreSQL features
+(`FILTER`, `jsonb_array_elements` over the frozen `missed_actions` snapshots).
+
+**Testing:** `AdminIntegrationTest` (6): role protection, create → edit (version 2) → deactivate (hidden from
+students), invalid scenario → 422 with field errors, AI variation stored inactive with changed IPs, attempts and
+analytics reflect a student run, admin cannot disable themselves. **TESTED.**
+
+**Test suite status after Step 10a:** `mvnw test` → **74 tests, 0 failures** (2026-10-06).

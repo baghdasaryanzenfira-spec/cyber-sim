@@ -1,0 +1,213 @@
+{
+  "slug": "public-storage-bucket",
+  "title": "Publicly Exposed Storage Bucket",
+  "summary": "A configuration monitor reports that a bucket with customer exports is readable by anyone, and an external researcher says they could download customer data. Contain the exposure and assess the damage.",
+  "description": "The company exports customer data every night into the storage bucket acme-customer-exports for internal analytics. This morning the configuration monitor reported that the bucket allows public read access. Two hours later the security mailbox received an e-mail from an external security researcher who found customer names and e-mail addresses in CSV files from that bucket.\n\nThe account also contains acme-website-assets, a bucket that serves the public website's images.\n\nFind out how the bucket became public, whether data was actually downloaded by unknown parties, close the exposure without breaking legitimate services and start the required follow-up.",
+  "difficulty": "INTERMEDIATE",
+  "category": "STORAGE",
+  "estimatedMinutes": 20,
+  "incidentExplanation": "A data engineer (dev.arthur) needed to share one file with the logistics partner ACME Logistics. Instead of a time-limited pre-signed URL he removed the bucket's public access block and added a bucket policy with 'Principal: *', allowing anyone to list and read the bucket. He forgot to revert the change. Within an hour an internet-wide scanner (185.220.101.4) discovered the bucket, listed it and downloaded customers_2026-09.csv (14.2 MB, personal data). The website-assets bucket is public by design and unrelated.",
+  "recommendedSolution": "1. Inspect the bucket policy change history and the storage access logs.\n2. Classify the incident as data exposure through a misconfigured (public) bucket and confirm that customer data was downloaded by an unknown party.\n3. Contain: re-enable Block Public Access and remove the public policy on acme-customer-exports (do NOT delete the bucket — it is evidence and business data).\n4. Recover: give the partner a time-limited pre-signed URL instead; start the data-breach notification process with the DPO/legal team.\n5. Harden: enable account-level Block Public Access with an exception list, and restrict s3:PutBucketPolicy for developers.\nLeave acme-website-assets public — it must stay public for the website.",
+  "hintPenalty": 3,
+  "outOfOrderPenalty": 5,
+  "active": true,
+  "learningObjectives": [
+    "Understand how bucket policies and public-access blocks control exposure of cloud storage",
+    "Use audit trail and storage access logs to determine who changed what and who accessed the data",
+    "Distinguish an intended public resource from an accidental exposure",
+    "Contain a data exposure without destroying evidence or breaking legitimate services",
+    "Know the follow-up obligations when personal data was accessed"
+  ],
+  "resources": [
+    {
+      "key": "bucket-exports", "type": "STORAGE_BUCKET", "name": "acme-customer-exports", "region": "eu-west-1", "status": "PUBLIC",
+      "properties": { "blockPublicAccess": false, "objects": 5821, "containsPersonalData": true, "encryption": "SSE-S3", "versioning": true }
+    },
+    {
+      "key": "bucket-assets", "type": "STORAGE_BUCKET", "name": "acme-website-assets", "region": "eu-west-1", "status": "PUBLIC",
+      "properties": { "blockPublicAccess": false, "purpose": "static website images (public by design)", "objects": 812 }
+    },
+    {
+      "key": "user-dev", "type": "IAM_USER", "name": "dev.arthur", "region": "global", "status": "ACTIVE",
+      "properties": { "team": "Data Engineering", "permissions": ["s3:*"], "mfaEnabled": true }
+    },
+    {
+      "key": "role-etl", "type": "IAM_ROLE", "name": "etl-export-role", "region": "global", "status": "ACTIVE",
+      "properties": { "usedBy": "nightly export job", "permissions": ["s3:PutObject on acme-customer-exports"] }
+    }
+  ],
+  "events": [
+    {
+      "key": "alert-public-exports", "offsetSeconds": 300, "type": "ALERT", "source": "config-monitor", "severity": "HIGH", "resourceKey": "bucket-exports",
+      "message": "Policy check FAILED: bucket acme-customer-exports allows public read and list (Principal: *)",
+      "details": { "rule": "s3-bucket-public-read-prohibited" },
+      "evidence": true, "evidenceNote": "Confirms that the bucket with personal data is publicly readable."
+    },
+    {
+      "key": "alert-public-assets", "offsetSeconds": 320, "type": "ALERT", "source": "config-monitor", "severity": "LOW", "resourceKey": "bucket-assets",
+      "message": "Policy check WARNING: bucket acme-website-assets allows public read",
+      "details": { "rule": "s3-bucket-public-read-prohibited", "exception": "documented in CMDB" },
+      "evidence": false
+    },
+    {
+      "key": "etl-run", "offsetSeconds": 900, "type": "LOG", "source": "audit-trail", "severity": "INFO", "resourceKey": "role-etl",
+      "message": "etl-export-role: PutObject customers_2026-10-05.csv (nightly export job, source 10.30.0.12)",
+      "details": { "job": "nightly-export" },
+      "evidence": false
+    },
+    {
+      "key": "researcher-email", "offsetSeconds": 7200, "type": "LOG", "source": "security-mailbox", "severity": "MEDIUM", "resourceKey": "bucket-exports",
+      "message": "E-mail from external researcher: 'Your bucket acme-customer-exports is publicly listable. I found CSV files with customer names and e-mail addresses.'",
+      "details": { "from": "researcher@example.org" },
+      "evidence": true, "evidenceNote": "External confirmation that the content is reachable and contains personal data."
+    },
+    {
+      "key": "policy-change", "offsetSeconds": 0, "type": "LOG", "source": "audit-trail", "severity": "HIGH", "resourceKey": "bucket-exports",
+      "message": "PutBucketPolicy on acme-customer-exports by dev.arthur — {Effect: Allow, Principal: *, Action: [s3:GetObject, s3:ListBucket]}",
+      "details": { "eventName": "PutBucketPolicy", "user": "dev.arthur" },
+      "evidence": true, "evidenceNote": "Root cause: a policy granting access to everyone (Principal: *).",
+      "revealedByActionKey": "inspect-bucket-policy"
+    },
+    {
+      "key": "pab-removed", "offsetSeconds": 5, "type": "LOG", "source": "audit-trail", "severity": "HIGH", "resourceKey": "bucket-exports",
+      "message": "DeletePublicAccessBlock on acme-customer-exports by dev.arthur",
+      "details": { "eventName": "DeletePublicAccessBlock", "user": "dev.arthur" },
+      "evidence": true, "evidenceNote": "The safety net (public access block) was removed, which made the public policy effective.",
+      "revealedByActionKey": "inspect-bucket-policy"
+    },
+    {
+      "key": "access-partner", "offsetSeconds": 1800, "type": "LOG", "source": "storage-access-log", "severity": "INFO", "resourceKey": "bucket-exports",
+      "message": "REST.GET.OBJECT partner_share.zip from 91.198.44.10 (ACME Logistics) — 200",
+      "details": { "ip": "91.198.44.10", "object": "partner_share.zip" },
+      "evidence": false, "revealedByActionKey": "inspect-access-logs"
+    },
+    {
+      "key": "access-scanner-list", "offsetSeconds": 3600, "type": "LOG", "source": "storage-access-log", "severity": "HIGH", "resourceKey": "bucket-exports",
+      "message": "REST.GET.BUCKET (list) from 185.220.101.4 — user agent Go-http-client/1.1 — 200",
+      "details": { "ip": "185.220.101.4", "operation": "ListBucket" },
+      "evidence": true, "evidenceNote": "An unknown automated client discovered and listed the bucket.",
+      "revealedByActionKey": "inspect-access-logs"
+    },
+    {
+      "key": "access-scanner-download", "offsetSeconds": 3700, "type": "LOG", "source": "storage-access-log", "severity": "CRITICAL", "resourceKey": "bucket-exports",
+      "message": "REST.GET.OBJECT customers_2026-09.csv (14.2 MB) from 185.220.101.4 — 200",
+      "details": { "ip": "185.220.101.4", "object": "customers_2026-09.csv", "bytes": 14889000 },
+      "evidence": true, "evidenceNote": "Personal data was actually downloaded by an unknown party — a data breach, not only an exposure.",
+      "revealedByActionKey": "inspect-access-logs"
+    },
+    {
+      "key": "developer-statement", "offsetSeconds": 7500, "type": "LOG", "source": "chat", "severity": "INFO", "resourceKey": "user-dev",
+      "message": "dev.arthur: 'Yesterday I opened the bucket to share one file with ACME Logistics and forgot to close it again. Sorry!'",
+      "details": {},
+      "evidence": true, "evidenceNote": "Explains intent: an honest configuration mistake, not an insider attack.",
+      "revealedByActionKey": "contact-developer"
+    },
+    {
+      "key": "assets-cmdb", "offsetSeconds": 7600, "type": "LOG", "source": "cmdb", "severity": "INFO", "resourceKey": "bucket-assets",
+      "message": "CMDB: acme-website-assets — public read is an approved exception (static images for www.acme.example)",
+      "details": {},
+      "evidence": false, "revealedByActionKey": "inspect-assets-bucket"
+    }
+  ],
+  "actions": [
+    {
+      "key": "inspect-bucket-policy", "label": "Inspect policy history of acme-customer-exports", "description": "Query the audit trail for policy and public-access changes on the bucket.",
+      "phase": "INVESTIGATION", "category": "INSPECT", "targetResourceKey": "bucket-exports", "outcome": "EXPECTED", "points": 10,
+      "resultMessage": "Audit trail: 2 configuration changes on acme-customer-exports in the last 48 hours.",
+      "explanation": "Shows how, when and by whom the bucket became public — the root cause."
+    },
+    {
+      "key": "inspect-access-logs", "label": "Analyse storage access logs of acme-customer-exports", "description": "Query object-level access records since the policy change.",
+      "phase": "INVESTIGATION", "category": "INSPECT", "targetResourceKey": "bucket-exports", "outcome": "EXPECTED", "points": 10,
+      "resultMessage": "Access log query finished: 3 requests from external IP addresses.",
+      "explanation": "Only access logs can tell whether the exposure was actually exploited."
+    },
+    {
+      "key": "contact-developer", "label": "Contact dev.arthur about the policy change", "description": "Ask the engineer who changed the policy why it was done.",
+      "phase": "INVESTIGATION", "category": "INSPECT", "targetResourceKey": "user-dev", "outcome": "EXPECTED", "points": 5,
+      "resultMessage": "dev.arthur answered in chat.",
+      "explanation": "Understanding intent separates a mistake from an insider attack and reveals the legitimate need (partner sharing)."
+    },
+    {
+      "key": "inspect-assets-bucket", "label": "Check acme-website-assets configuration", "description": "Look up the CMDB record of the website assets bucket.",
+      "phase": "INVESTIGATION", "category": "INSPECT", "targetResourceKey": "bucket-assets", "outcome": "NEUTRAL", "points": 0,
+      "resultMessage": "CMDB record retrieved.",
+      "explanation": "Reasonable to double-check, but the LOW alert and the bucket purpose already indicate an approved exception."
+    },
+    {
+      "key": "identify-exposure", "label": "Classify incident: data exposure via public bucket", "description": "Record the incident type in the ticket.",
+      "phase": "INVESTIGATION", "category": "IDENTIFY", "targetResourceKey": "bucket-exports", "outcome": "EXPECTED", "points": 15,
+      "prerequisiteActionKey": "inspect-bucket-policy",
+      "resultMessage": "Incident INC-2026-0427 classified as 'cloud storage misconfiguration / data exposure'.",
+      "explanation": "The root cause is a misconfiguration, not an external hack of the account."
+    },
+    {
+      "key": "identify-exfiltration", "label": "Confirm customer data was downloaded by an unknown party", "description": "Record the confirmed data access in the ticket.",
+      "phase": "INVESTIGATION", "category": "IDENTIFY", "targetResourceKey": "bucket-exports", "outcome": "EXPECTED", "points": 10,
+      "prerequisiteActionKey": "inspect-access-logs",
+      "resultMessage": "Ticket updated: customers_2026-09.csv downloaded by 185.220.101.4.",
+      "explanation": "A confirmed download of personal data turns the exposure into a reportable breach."
+    },
+    {
+      "key": "block-public-access", "label": "Enable Block Public Access and remove the public policy", "description": "Re-enable the bucket-level public access block and delete the 'Principal: *' statement on acme-customer-exports.",
+      "phase": "RESPONSE", "category": "CONTAIN", "targetResourceKey": "bucket-exports", "outcome": "EXPECTED", "points": 20,
+      "prerequisiteActionKey": "identify-exposure", "effectStatus": "PRIVATE",
+      "resultMessage": "acme-customer-exports is now private. Anonymous requests return 403.",
+      "explanation": "Stops further exposure immediately while keeping data and logs for the investigation."
+    },
+    {
+      "key": "share-presigned-url", "label": "Share the partner file via a time-limited pre-signed URL", "description": "Give ACME Logistics a 24-hour pre-signed link to partner_share.zip.",
+      "phase": "RESPONSE", "category": "RECOVER", "outcome": "EXPECTED", "points": 5,
+      "prerequisiteActionKey": "block-public-access",
+      "resultMessage": "Pre-signed URL (valid 24 h) sent to ACME Logistics.",
+      "explanation": "Solves the legitimate business need securely, so nobody is tempted to re-open the bucket."
+    },
+    {
+      "key": "notify-privacy", "label": "Start the data-breach notification process", "description": "Inform the DPO and legal team about the downloaded personal data.",
+      "phase": "RESPONSE", "category": "RECOVER", "outcome": "EXPECTED", "points": 10,
+      "prerequisiteActionKey": "identify-exfiltration",
+      "resultMessage": "DPO and legal informed; supervisory-authority assessment started (72-hour deadline).",
+      "explanation": "Personal data of customers was obtained by an unknown party — notification duties apply."
+    },
+    {
+      "key": "enable-account-guardrail", "label": "Enable account-level Block Public Access with an exception list", "description": "Turn on Block Public Access for the whole account; keep acme-website-assets as a documented exception.",
+      "phase": "RESPONSE", "category": "HARDEN", "outcome": "EXPECTED", "points": 10,
+      "resultMessage": "Account-level public access block enabled; exception registered for acme-website-assets.",
+      "explanation": "A preventive guardrail makes the same mistake impossible in the future."
+    },
+    {
+      "key": "restrict-dev-permissions", "label": "Restrict s3:PutBucketPolicy for dev.arthur", "description": "Replace 's3:*' with a least-privilege policy without bucket-policy administration.",
+      "phase": "RESPONSE", "category": "HARDEN", "targetResourceKey": "user-dev", "outcome": "EXPECTED", "points": 5,
+      "effectStatus": "RESTRICTED",
+      "resultMessage": "dev.arthur now has a least-privilege data-engineer policy.",
+      "explanation": "Least privilege: developers should not be able to change bucket access policies on production data."
+    },
+    {
+      "key": "delete-bucket", "label": "Delete bucket acme-customer-exports", "description": "Delete the bucket and all objects.",
+      "phase": "RESPONSE", "category": "CONTAIN", "targetResourceKey": "bucket-exports", "outcome": "HARMFUL", "points": -15,
+      "effectStatus": "DELETED",
+      "resultMessage": "Bucket acme-customer-exports and 5,821 objects deleted.",
+      "explanation": "Destructive: destroys business data and the access logs needed for the breach investigation. Making it private is enough."
+    },
+    {
+      "key": "make-assets-private", "label": "Make acme-website-assets private", "description": "Apply Block Public Access to the website assets bucket.",
+      "phase": "RESPONSE", "category": "CONTAIN", "targetResourceKey": "bucket-assets", "outcome": "HARMFUL", "points": -5,
+      "effectStatus": "PRIVATE",
+      "resultMessage": "acme-website-assets is private. The public website no longer shows images.",
+      "explanation": "The website bucket is public by design; closing it causes an outage without security benefit."
+    },
+    {
+      "key": "disable-developer", "label": "Disable the account of dev.arthur", "description": "Deactivate the engineer's identity.",
+      "phase": "RESPONSE", "category": "CONTAIN", "targetResourceKey": "user-dev", "outcome": "HARMFUL", "points": -5,
+      "effectStatus": "DISABLED",
+      "resultMessage": "dev.arthur disabled. The nightly export pipeline maintenance is blocked.",
+      "explanation": "There is no sign of malicious intent; restricting permissions addresses the risk without punishing an honest mistake."
+    }
+  ],
+  "hints": [
+    "Two buckets are public, but only one alert is HIGH. What is different about the data in each bucket?",
+    "To find the root cause, look at who changed the bucket's access configuration and when. To find the impact, look at who actually read from it.",
+    "Contain the exposure in a way that keeps the data and the logs. Is there a safer way to give the partner their file?",
+    "Personal data was involved. Who must be informed, and what guardrail would prevent the same mistake account-wide?"
+  ]
+}
