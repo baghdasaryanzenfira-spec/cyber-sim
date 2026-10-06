@@ -1,0 +1,73 @@
+# All environment-specific values come from environment variables (see /.env.example).
+# Defaults below are only for a local development database and are NOT secrets.
+spring:
+  application:
+    name: cyber-sim-backend
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/cybersim}
+    username: ${DB_USERNAME:cybersim}
+    password: ${DB_PASSWORD:cybersim}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate          # schema is owned by Flyway, Hibernate only validates it
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  jackson:
+    default-property-inclusion: non_null
+
+server:
+  port: ${SERVER_PORT:8080}
+  error:
+    include-message: never
+    include-stacktrace: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+  api-docs:
+    path: /v3/api-docs
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:}
+    expiration-minutes: ${JWT_EXPIRATION_MINUTES:60}
+    issuer: cybersim
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  demo:
+    enabled: ${APP_DEMO_DATA_ENABLED:false}
+    admin-email: ${DEMO_ADMIN_EMAIL:admin@cybersim.local}
+    admin-password: ${DEMO_ADMIN_PASSWORD:}
+    student-email: ${DEMO_STUDENT_EMAIL:student@cybersim.local}
+    student-password: ${DEMO_STUDENT_PASSWORD:}
+  ai:
+    provider: ${AI_PROVIDER:mock}
+    anthropic-api-key: ${ANTHROPIC_API_KEY:}
+    model: ${AI_MODEL:claude-opus-5-5}
+    effort: ${AI_EFFORT:low}
+    timeout-seconds: ${AI_TIMEOUT_SECONDS:30}
+    max-tokens: ${AI_MAX_TOKENS:2048}
+    server-side-fallback: ${AI_SERVER_SIDE_FALLBACK:true}
+  scenarios:
+    seed-enabled: ${APP_SCENARIO_SEED_ENABLED:true}
+
+logging:
+  level:
+    am.cybersim: INFO

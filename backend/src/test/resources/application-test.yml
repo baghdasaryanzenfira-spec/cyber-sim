@@ -1,0 +1,10 @@
+# Test-only configuration. The JWT secret below is a throwaway value used only by automated tests.
+app:
+  jwt:
+    secret: test-only-secret-key-with-at-least-32-bytes!!
+  demo:
+    enabled: false
+  ai:
+    provider: mock
+  scenarios:
+    seed-enabled: true

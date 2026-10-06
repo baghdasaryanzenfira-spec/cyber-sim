@@ -1,0 +1,1041 @@
+You are a Senior Software Architect, Senior Java/Spring Boot Engineer, Cybersecurity Engineer, AI Engineer, and Technical Documentation Writer.
+
+I need you to design and implement my university graduation project from scratch.
+
+PROJECT TITLE:
+"Development of a Cloud Cyber Incident Simulation and Security Specialist Training Platform Using Artificial Intelligence"
+
+IMPORTANT:
+This must become a real, runnable, demonstrable application — not only a conceptual prototype.
+
+The project will later be presented as my graduation thesis, so code quality, architecture, documentation, screenshots, diagrams, and clear explanations of technical decisions are extremely important.
+
+==================================================
+1. PROJECT OBJECTIVE
+==================================================
+
+Build a web-based cybersecurity training platform where users can learn how to identify, investigate, and respond to simulated cloud cybersecurity incidents.
+
+The platform should provide:
+
+- User authentication and authorization
+- Student/user dashboard
+- Cybersecurity training scenarios
+- Cloud incident simulations
+- Interactive incident investigation
+- Logs and security events
+- User actions during simulations
+- AI assistant
+- AI-generated hints and explanations
+- AI-assisted analysis of user actions
+- Simulation scoring
+- Progress tracking
+- Training history
+- Admin panel
+- Scenario management
+- User management
+- Statistics and analytics
+
+The system should simulate cloud cybersecurity incidents safely. Do NOT build functionality intended to attack real external systems.
+
+The simulation environment should be isolated and controlled.
+
+==================================================
+2. PREFERRED TECHNOLOGY STACK
+==================================================
+
+Use the following technologies unless there is a strong technical reason not to.
+
+BACKEND:
+- Java 21
+- Spring Boot
+- Spring Web
+- Spring Security
+- Spring Data JPA
+- Hibernate
+- Bean Validation
+- REST API
+- Maven
+
+DATABASE:
+- PostgreSQL
+- Flyway or Liquibase for database migrations
+
+FRONTEND:
+Choose a modern frontend solution suitable for a university project.
+
+Preferred:
+- React
+- TypeScript
+
+You may use:
+- Vite
+- React Router
+- Axios
+- a reasonable UI component library
+
+Do not unnecessarily overcomplicate the frontend architecture.
+
+SECURITY:
+- Spring Security
+- JWT-based authentication
+- Role-based authorization
+
+Roles:
+- USER / STUDENT
+- ADMIN
+
+SIMULATION:
+- Docker
+- Docker Compose
+
+If useful, consider LocalStack for simulated AWS-like services, but only if it adds meaningful educational value without making the project unnecessarily difficult to run.
+
+AI:
+Create an abstraction that allows an LLM provider to be integrated.
+
+The application must also be able to run without a real paid AI API key.
+
+Therefore provide:
+1. Real AI provider integration interface
+2. Mock/fallback AI implementation for local demonstrations
+
+The AI provider must be configurable through environment variables.
+
+Do not hardcode API keys.
+
+==================================================
+3. SYSTEM ARCHITECTURE
+==================================================
+
+Start with a modular monolith unless there is a very strong reason to introduce microservices.
+
+Do NOT use microservices simply to make the architecture look more advanced.
+
+The architecture should remain understandable and runnable on a normal development computer.
+
+Design clear modules such as:
+
+authentication
+users
+training
+scenarios
+simulations
+incidents
+events/logs
+ai
+scoring
+progress
+admin
+analytics
+
+Use clean separation between:
+
+Controller
+Service
+Repository
+Domain/Entity
+DTO
+Mapper
+Configuration
+Security
+
+Avoid unnecessary abstractions.
+
+==================================================
+4. CORE USER FLOW
+==================================================
+
+A normal user should be able to:
+
+1. Register
+2. Log in
+3. Open the dashboard
+4. Browse available cybersecurity scenarios
+5. Select a scenario
+6. Read the scenario description and learning objectives
+7. Start a simulation
+8. Receive simulated cloud resources, logs, alerts, and incident information
+9. Investigate the incident
+10. Perform response actions
+11. Ask the AI assistant for help
+12. Receive contextual hints
+13. Finish the simulation
+14. Receive a score
+15. See mistakes and correct actions
+16. Receive AI-generated feedback
+17. View previous simulations
+18. Track learning progress
+
+==================================================
+5. ADMIN FLOW
+==================================================
+
+ADMIN must have a dedicated administration interface.
+
+Admin should be able to:
+
+- View users
+- View user progress
+- Create scenarios
+- Edit scenarios
+- Activate/deactivate scenarios
+- Configure scenario difficulty
+- Configure incident information
+- Configure expected actions
+- Configure scoring rules
+- View simulation attempts
+- View statistics
+- View common user mistakes
+
+Design this in a way that is demonstrable through screenshots for the graduation thesis.
+
+==================================================
+6. CYBER INCIDENT SIMULATIONS
+==================================================
+
+Create several safe educational scenarios.
+
+Initial scenarios can include:
+
+1. Brute-force attack against a cloud VM
+2. Compromised user credentials
+3. Excessive IAM permissions / privilege escalation
+4. Publicly exposed cloud storage
+5. Suspicious login
+6. Data exfiltration indicators
+7. Cloud security misconfiguration
+
+For the first implementation, fully implement 2-3 scenarios rather than creating many incomplete scenarios.
+
+Each scenario should contain:
+
+- Title
+- Description
+- Difficulty
+- Learning objectives
+- Initial infrastructure state
+- Incident timeline
+- Logs/events
+- Alerts
+- Evidence
+- Expected investigation steps
+- Expected response actions
+- Optional hints
+- Scoring rules
+- Explanation of the incident
+- Recommended solution
+
+Simulation examples:
+
+Scenario:
+Compromised Cloud VM
+
+Evidence:
+- Multiple failed SSH login attempts
+- Successful login from suspicious IP
+- New privileged user created
+- Suspicious process started
+- Unexpected outbound traffic
+
+Expected student actions:
+- Identify suspicious authentication activity
+- Investigate relevant logs
+- Identify compromised resource
+- Isolate VM
+- Disable compromised credentials
+- Recommend credential rotation
+- Review access permissions
+
+The simulation must be deterministic enough to test, but designed so AI can later add variation.
+
+==================================================
+7. SIMULATION ENGINE
+==================================================
+
+Design a reusable simulation engine.
+
+Possible state lifecycle:
+
+CREATED
+→ RUNNING
+→ INVESTIGATING
+→ RESPONDING
+→ COMPLETED
+
+Store important actions performed by the student.
+
+Example:
+
+SimulationAction:
+- timestamp
+- simulationId
+- userId
+- actionType
+- targetResource
+- metadata
+- result
+
+The scoring engine should evaluate the user's actions against scenario expectations.
+
+Example scoring:
+
+Correct incident identification: +20
+Correct compromised resource: +15
+Correct log investigation: +10
+Correct containment action: +20
+Credential rotation: +10
+Permission review: +10
+Incorrect destructive action: -10
+AI hint usage: optional small penalty
+
+Keep scoring configurable.
+
+==================================================
+8. AI ASSISTANT
+==================================================
+
+AI is an important part of the graduation project.
+
+Do not make AI only a chatbot placed on the page.
+
+It should have a meaningful role.
+
+AI capabilities should include:
+
+A. CONTEXTUAL ASSISTANT
+
+AI receives:
+- current scenario
+- incident description
+- visible evidence
+- actions already performed
+- current simulation state
+
+It can provide educational hints without immediately revealing the complete solution.
+
+B. POST-SIMULATION ANALYSIS
+
+After completion, AI should analyze:
+
+- correct actions
+- mistakes
+- missed evidence
+- action order
+- unnecessary actions
+
+Then generate feedback.
+
+Example:
+
+Score: 82/100
+
+Strengths:
+- Correctly identified the compromised VM
+- Investigated authentication logs
+- Isolated the affected resource
+
+Improvements:
+- Credentials should have been rotated earlier
+- IAM permissions were not reviewed
+
+C. SCENARIO GENERATION / VARIATION
+
+If practical, allow AI to generate variations of existing scenario templates.
+
+However, AI-generated content must be validated before it affects application state.
+
+D. LEARNING RECOMMENDATIONS
+
+Based on previous simulations, AI may recommend topics such as:
+
+- IAM security
+- Network security
+- Incident response
+- Authentication security
+- Cloud logging
+
+==================================================
+9. AI SAFETY AND RELIABILITY
+==================================================
+
+Treat AI output as untrusted data.
+
+Implement:
+
+- Input validation
+- Output validation where appropriate
+- Timeouts
+- Error handling
+- Fallback behavior
+- Logging
+- Configurable provider
+- Mock AI provider
+
+Do not allow the AI model to directly execute arbitrary operating system commands.
+
+AI should recommend or classify actions; application logic must decide what is actually allowed.
+
+==================================================
+10. DATABASE DESIGN
+==================================================
+
+Design a normalized PostgreSQL schema.
+
+Expected entities may include:
+
+User
+Role
+Scenario
+ScenarioStep
+ScenarioEvidence
+Simulation
+SimulationAction
+SimulationEvent
+Score
+Feedback
+LearningProgress
+AiInteraction
+
+Modify this model if you identify a better design.
+
+Create:
+
+- JPA entities
+- relationships
+- indexes
+- constraints
+- migration scripts
+- seed/demo data
+
+Document every important database decision.
+
+==================================================
+11. REST API
+==================================================
+
+Design REST endpoints for:
+
+Authentication
+Users
+Scenarios
+Simulations
+Simulation actions
+AI assistant
+Results
+Progress
+Admin
+Analytics
+
+Use DTOs rather than exposing JPA entities directly.
+
+Provide:
+
+- validation
+- appropriate HTTP status codes
+- global exception handling
+- consistent error responses
+
+Document the API.
+
+If appropriate, integrate OpenAPI/Swagger.
+
+==================================================
+12. FRONTEND
+==================================================
+
+Create a clean cybersecurity-oriented interface.
+
+Required pages:
+
+PUBLIC:
+- Login
+- Registration
+
+USER:
+- Dashboard
+- Scenario list
+- Scenario details
+- Active simulation
+- Logs/events viewer
+- Evidence viewer
+- AI assistant
+- Simulation result
+- Progress/history
+
+ADMIN:
+- Admin dashboard
+- Users
+- Scenarios
+- Scenario editor
+- Simulation attempts
+- Analytics
+
+The Active Simulation page is especially important.
+
+A possible layout:
+
+------------------------------------------------
+Scenario / Incident information
+------------------------------------------------
+Cloud resources | Logs / Alerts | AI Assistant
+------------------------------------------------
+Available actions
+------------------------------------------------
+Incident timeline
+------------------------------------------------
+
+The interface should look professional enough for thesis screenshots.
+
+==================================================
+13. TESTING
+==================================================
+
+Create meaningful tests.
+
+Backend:
+- Unit tests
+- Service tests
+- Repository tests where appropriate
+- Controller/API tests
+- Security tests
+
+Prioritize tests for:
+
+- Authentication
+- Authorization
+- Simulation state transitions
+- Scoring
+- Scenario execution
+- AI fallback behavior
+
+Use:
+- JUnit 5
+- Mockito
+- Spring Boot Test
+
+Testcontainers for PostgreSQL may be used if appropriate.
+
+==================================================
+14. LOCAL DEVELOPMENT
+==================================================
+
+The project must be easy to start.
+
+Create:
+
+docker-compose.yml
+
+At minimum:
+- PostgreSQL
+
+If practical:
+- Backend
+- Frontend
+- LocalStack
+
+Provide:
+
+.env.example
+
+Never commit secrets.
+
+Provide clear commands for:
+
+Development startup
+Production-like startup
+Database reset
+Tests
+
+Ideally the final project should be runnable using something close to:
+
+docker compose up
+
+==================================================
+15. DOCUMENTATION — EXTREMELY IMPORTANT
+==================================================
+
+Documentation is a mandatory part of this task.
+
+Do NOT only write code.
+
+Create a /docs directory.
+
+Maintain documentation while implementing the project.
+
+At minimum create:
+
+docs/
+    01-project-overview.md
+    02-requirements.md
+    03-technology-research.md
+    04-system-architecture.md
+    05-database-design.md
+    06-backend-implementation.md
+    07-frontend-implementation.md
+    08-simulation-engine.md
+    09-ai-integration.md
+    10-security.md
+    11-testing.md
+    12-deployment.md
+    13-user-guide.md
+    14-admin-guide.md
+    15-thesis-material.md
+    16-implementation-log.md
+
+Also create a high-quality root README.md.
+
+==================================================
+16. DOCUMENT WHAT AND WHY
+==================================================
+
+This requirement is extremely important.
+
+For every significant implementation decision, document:
+
+WHAT was implemented.
+
+WHY it was implemented.
+
+HOW it works.
+
+WHAT alternatives were considered.
+
+WHY the selected approach was preferred.
+
+Example:
+
+Decision:
+Use a modular monolith.
+
+Why:
+The application contains multiple logical domains, but the expected university-project workload and deployment requirements do not justify the operational complexity of microservices.
+
+Alternative:
+Microservices.
+
+Reason rejected:
+They would introduce service discovery, distributed communication, multiple deployments, and additional infrastructure without providing meaningful benefits for the current scope.
+
+Use this style throughout the documentation.
+
+==================================================
+17. IMPLEMENTATION LOG
+==================================================
+
+Maintain:
+
+docs/16-implementation-log.md
+
+Every major implementation step should have an entry.
+
+Example:
+
+## Step 4 — Authentication
+
+Implemented:
+- User entity
+- Role entity
+- JWT authentication
+- Spring Security filter chain
+- Login endpoint
+- Registration endpoint
+
+Files created/modified:
+- User.java
+- Role.java
+- JwtService.java
+- SecurityConfig.java
+- AuthController.java
+
+Why:
+JWT allows the React frontend to communicate with the REST backend while keeping the backend stateless.
+
+How it works:
+...
+
+Problems encountered:
+...
+
+Solution:
+...
+
+Testing:
+...
+
+This file should become a chronological technical history of the project.
+
+==================================================
+18. THESIS DOCUMENTATION
+==================================================
+
+The graduation thesis will use the following three major sections.
+
+SECTION 1:
+Research of Technologies and Methods Used in the Platform
+
+SECTION 2:
+System Design and Software Implementation
+
+SECTION 3:
+Functional Capabilities and Results of the Developed Platform
+
+Maintain:
+
+docs/15-thesis-material.md
+
+Organize technical information so that it can later be transformed into these three thesis sections.
+
+==================================================
+19. THESIS FIGURES / SCREENSHOTS
+==================================================
+
+The final thesis has limited space.
+
+We expect approximately 20 figures/screenshots in total.
+
+Therefore, while implementing, identify important material suitable for thesis figures.
+
+Recommended categories:
+
+SECTION 1:
+- Technology / cloud security diagram
+- Backend technology interaction diagram
+- Container/infrastructure diagram
+- AI workflow diagram
+
+SECTION 2:
+- System architecture
+- Main workflow
+- Database ER diagram
+- Important Spring Boot code snippet
+- Simulation engine code snippet
+- Simulation workflow
+- AI integration code snippet
+- AI request/response example
+
+SECTION 3:
+- Login / registration
+- User dashboard
+- Scenario selection
+- Active simulation
+- AI assistant
+- Admin dashboard
+- Scenario management
+- Results / progress
+
+Create:
+
+docs/thesis-figures.md
+
+For every recommended figure record:
+
+Figure number
+Title
+Section
+Purpose
+Source
+How to reproduce it
+
+Example:
+
+Figure 7
+Title:
+Simulation Engine State Transition
+
+Section:
+System Design and Software Implementation
+
+Purpose:
+Demonstrates how a training simulation moves between CREATED, RUNNING, INVESTIGATING, RESPONDING and COMPLETED states.
+
+Source:
+Generated Mermaid diagram.
+
+This is important because I will later need to create a 5-sheet / 10-page graphical thesis section.
+
+==================================================
+20. DIAGRAMS
+==================================================
+
+Create diagrams where useful using Mermaid.
+
+At minimum provide:
+
+1. High-level system architecture
+2. Database ER diagram
+3. Authentication flow
+4. Simulation lifecycle
+5. AI assistant workflow
+6. User training workflow
+
+Store diagram sources in documentation so they can be regenerated.
+
+==================================================
+21. CODE DOCUMENTATION
+==================================================
+
+Do not fill the code with obvious comments.
+
+Comment important business logic.
+
+For complex classes/methods explain:
+
+- responsibility
+- inputs
+- outputs
+- important assumptions
+- security considerations
+
+Documentation should explain architecture rather than repeating the code line by line.
+
+==================================================
+22. DEVELOPMENT QUALITY RULES
+==================================================
+
+Follow:
+
+SOLID principles where useful
+Clean Code
+Clear naming
+Small focused classes
+Constructor injection
+DTO separation
+Central exception handling
+Configuration through environment variables
+Database migrations
+Secure password hashing
+No committed credentials
+Logging without sensitive information
+
+Avoid:
+
+God classes
+Huge controllers
+Business logic in controllers
+Hardcoded secrets
+Unnecessary design patterns
+Unnecessary microservices
+Premature optimization
+
+==================================================
+23. GIT / IMPLEMENTATION STRUCTURE
+==================================================
+
+Work incrementally.
+
+Each logical phase should be independently understandable.
+
+Recommended phases:
+
+PHASE 0
+Project analysis and planning
+
+PHASE 1
+Repository/project structure
+
+PHASE 2
+Database and backend foundation
+
+PHASE 3
+Authentication and authorization
+
+PHASE 4
+Scenario management
+
+PHASE 5
+Simulation engine
+
+PHASE 6
+Scoring and progress
+
+PHASE 7
+AI integration
+
+PHASE 8
+Frontend foundation
+
+PHASE 9
+User simulation interface
+
+PHASE 10
+Admin panel
+
+PHASE 11
+Testing
+
+PHASE 12
+Docker/deployment
+
+PHASE 13
+Documentation review
+
+Do not attempt to generate the entire application as one giant uncontrolled code dump.
+
+==================================================
+24. FIRST TASK
+==================================================
+
+Start now.
+
+First inspect the current repository.
+
+If it is empty:
+
+1. Create the initial project structure.
+2. Write the project architecture proposal.
+3. Define the MVP.
+4. Define entities and relationships.
+5. Define REST API boundaries.
+6. Define the frontend structure.
+7. Define the simulation engine design.
+8. Define the AI integration strategy.
+9. Create the documentation structure.
+10. Create the implementation roadmap.
+
+Then BEGIN IMPLEMENTATION.
+
+Do not stop after giving me the plan.
+
+Start implementing Phase 1 and continue through the logical next steps.
+
+If the repository already contains code:
+
+DO NOT replace it blindly.
+
+First:
+- inspect it
+- understand the existing architecture
+- document what already exists
+- identify gaps
+- create an implementation plan
+- then modify it incrementally
+
+==================================================
+25. WORKING RULE
+==================================================
+
+At the beginning of every major phase:
+
+Explain:
+- What you are going to implement
+- Why it is needed
+- Which files/modules will be affected
+
+Then implement it.
+
+At the end of every phase:
+
+Report:
+- What was completed
+- Files created
+- Files modified
+- Important technical decisions
+- Tests added
+- Tests executed
+- Current limitations
+- Next recommended step
+
+Update the documentation immediately.
+
+Never leave documentation until the end.
+
+==================================================
+26. IMPORTANT: DO NOT FAKE RESULTS
+==================================================
+
+Never claim:
+
+"tests pass"
+"application runs"
+"endpoint works"
+"Docker works"
+
+unless you actually executed and verified it.
+
+If something cannot be executed in the current environment, explicitly write:
+
+"Implemented but not runtime-verified because ..."
+
+Distinguish between:
+
+IMPLEMENTED
+TESTED
+VERIFIED
+
+==================================================
+27. MVP PRIORITY
+==================================================
+
+Prioritize a working end-to-end flow over excessive features.
+
+The first complete MVP should demonstrate:
+
+Register/Login
+        ↓
+Dashboard
+        ↓
+Select Scenario
+        ↓
+Start Simulation
+        ↓
+Investigate Logs/Evidence
+        ↓
+Perform Security Actions
+        ↓
+Use AI Assistant
+        ↓
+Complete Simulation
+        ↓
+Calculate Score
+        ↓
+AI Feedback
+        ↓
+Progress Saved
+
+And:
+
+Admin Login
+        ↓
+Admin Dashboard
+        ↓
+Create/Edit Scenario
+        ↓
+Configure Evidence/Expected Actions
+        ↓
+View User Attempts/Results
+
+Once this works reliably, improve the platform.
+
+==================================================
+28. FINAL GOAL
+==================================================
+
+At the end I want to have:
+
+1. A runnable full-stack application.
+2. Java/Spring Boot backend.
+3. PostgreSQL database.
+4. Modern web frontend.
+5. Cyber incident simulation engine.
+6. Multiple demonstration scenarios.
+7. AI assistant integration.
+8. AI-based post-simulation feedback.
+9. Scoring and progress tracking.
+10. Admin panel.
+11. Docker-based local environment.
+12. Automated tests.
+13. Architecture diagrams.
+14. Database diagram.
+15. API documentation.
+16. Extremely detailed technical documentation.
+17. A chronological implementation log.
+18. Documentation explaining WHAT, WHY and HOW.
+19. Thesis-ready technical material.
+20. A list of approximately 20 recommended thesis figures/screenshots.
+
+The project should be technically credible but realistic for a university graduation project.
+
+Do not add complexity only for appearance.
+
+START by analyzing the repository and creating the initial architecture and documentation, then immediately proceed with implementation.
