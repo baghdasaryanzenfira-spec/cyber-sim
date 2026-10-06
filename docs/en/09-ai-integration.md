@@ -135,8 +135,8 @@ sequenceDiagram
 
 ## 6. Prompts
 
-Prompts are built by `AiPromptBuilder` and documented with real examples in §7 after implementation
-(Phase 7). Structure of every prompt:
+Prompts are built by `AiPromptBuilder` (`backend/src/main/java/am/cybersim/ai/AiPromptBuilder.java`).
+Structure of every prompt:
 
 ```
 SYSTEM: role (cybersecurity instructor for a training platform) + rules + output format
@@ -146,6 +146,79 @@ USER:   <scenario> ... </scenario>
         <student_question> (untrusted) </student_question>
 ```
 
+Which context each task receives (least-information principle):
+
+| Task | Scenario briefing | Visible logs / state | Action catalogue labels | Outcomes, points, explanations | Incident explanation & solution | Student text |
+|------|:-:|:-:|:-:|:-:|:-:|:-:|
+| Hint | ✓ | ✓ | ✓ | – | – | – |
+| Question | ✓ | ✓ | ✓ | – | – | ✓ (delimited) |
+| Feedback | ✓ | ✓ | ✓ | ✓ | ✓ | – |
+| Recommendation | – | – | – | – | – | – (statistics only) |
+| Variation | full definition (admin only) | | | | | |
+
 ## 7. Example request/response
 
-*(Filled in Phase 7 with a captured mock and, if a key is available, a real Claude example.)*
+### 7.1 Hint request (abridged user prompt, SSH scenario after one action)
+
+```text
+SYSTEM: You are an experienced cloud security incident responder acting as a tutor on CyberSim ...
+        TASK: give the student ONE educational hint ... Never name more than one concrete action ...
+        Maximum 3 sentences, plain text.
+USER:   <scenario>
+        Title: SSH Brute-Force Attack on a Cloud VM
+        Category: NETWORK, difficulty: BEGINNER
+        Briefing: You are the on-call security analyst ...
+        </scenario>
+        <simulation_state>
+        Status: INVESTIGATING, hints used: 0
+        Cloud resources:
+        - web-prod-01 (VIRTUAL_MACHINE) status RUNNING
+        ...
+        Visible logs and alerts:
+        - 10:41:15 [ALERT/HIGH] threat-detection: UnauthorizedAccess:EC2/SSHBruteForce — 1,284 failed SSH logins ...
+        - 10:41:12 [LOG/CRITICAL] auth.log: sshd[3120]: Accepted password for admin from 203.0.113.45 ...
+        Actions the student already performed:
+        - Inspect SSH authentication log on web-prod-01
+        Actions available in the console:
+        - Inspect SSH authentication log on web-prod-01 (INVESTIGATION)
+        - Isolate web-prod-01 (quarantine security group) (RESPONSE)
+        ...
+        </simulation_state>
+        <instructor_notes> ...author's static hints... </instructor_notes>
+        <task>Give hint number 1.</task>
+```
+
+Validated answer (offline tutor, captured from the running system):
+> *"Once you know the host is compromised, contain it without destroying evidence, then deal with every account the
+> attacker used or created."*
+
+A Claude answer goes through the same validator; a hint that names two or more remaining expected actions verbatim is
+rejected and replaced by the fallback (tested in `AiGatewayTest.hintThatRevealsTheSolutionIsRejected`).
+
+### 7.2 Post-simulation feedback (structured output)
+
+Audit row from `ai_interactions` (captured 2026-10-06, compromised-credentials scenario, score 6/100):
+`FEEDBACK | MOCK | SUCCESS | 8 ms | Post-simulation analysis (score 6)` — response (abridged):
+
+```json
+{
+  "summary": "… you scored 6/100. You completed 1 of 9 key response steps; review the improvements below.",
+  "strengths": ["You performed \"Review sign-in log of maria.k\"."],
+  "improvements": [
+    "You missed \"Deactivate access key AKIA…7Q2X\": A password reset does NOT invalidate access keys — the key must be disabled separately.",
+    "You missed \"Revoke all active sessions of maria.k\": Existing sessions stay valid after a password change; they must be revoked to kick the attacker out."
+  ],
+  "missedEvidence": [
+    "Not flagged: Impossible travel: maria.k signed in from Yerevan, AM (18:05) and from Lagos, NG (03:12) — 5,100 km in 9 hours",
+    "Never uncovered: CreateAccessKey by maria.k (source 102.89.33.17) → AKIA…7Q2X"
+  ],
+  "orderIssues": [],
+  "unnecessaryActions": [],
+  "nextSteps": ["Practise identify steps of the incident-response process."]
+}
+```
+
+With `AI_PROVIDER=claude` the same JSON schema is enforced through structured outputs (the SDK derives the schema from
+the `AiFeedback` record) and then validated again by `AiOutputValidator`. **Live Claude output: implemented but not
+runtime-verified** (no API key in the development environment) — capture one for the thesis by setting
+`ANTHROPIC_API_KEY` and reading *Admin → Attempts → Details → AI interactions*.

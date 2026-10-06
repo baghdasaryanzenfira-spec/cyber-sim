@@ -45,4 +45,33 @@ frontend/
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-*(Details added in Phases 8–10.)*
+## 4. Implemented pages
+
+| Route | Page | Role |
+|-------|------|------|
+| `/login`, `/register` | `AuthPages.tsx` | public |
+| `/` | `DashboardPage` — stats, score history chart, unfinished simulations, scenario cards | student |
+| `/scenarios`, `/scenarios/:id` | `ScenarioPages.tsx` — catalogue with filters, briefing + *Start simulation* | student |
+| `/simulations/:id` | `simulation/ActiveSimulationPage` + `ResourcesPanel`, `LogsPanel` (evidence board), `AssistantPanel`, `ActionsPanel`, `TimelinePanel` | student |
+| `/simulations/:id/result` | `ResultPage` → shared `ResultView` (gauge, AI feedback, breakdown, missed actions, evidence, explanation) | student |
+| `/history` | `HistoryPage` — progress charts, AI recommendations, attempt history | student |
+| `/admin` | `AdminDashboardPage` | admin |
+| `/admin/users`, `/admin/users/:id` | `AdminUsersPages.tsx` | admin |
+| `/admin/scenarios`, `/admin/scenarios/:id` (`new`) | `AdminScenarioPages.tsx` + generic `RowEditor` | admin |
+| `/admin/attempts`, `/admin/attempts/:id` | `AdminAttemptsPages.tsx` (reuses `ResultView`, `LogsPanel`, `TimelinePanel`) | admin |
+| `/admin/analytics` | `AdminAnalyticsPage` | admin |
+
+## 5. Implementation notes
+- **Routing:** `createBrowserRouter` with nested layout routes; `RequireAuth` and `RequireAdmin` guards (UX only — the
+  backend enforces authorization).
+- **Data loading:** a small `useLoad` hook (load, error, reload, local update) instead of a data-fetching library —
+  the application has few, simple requests.
+- **Reuse between student and admin views:** `ResultView`, `LogsPanel`, `TimelinePanel` and `ProgressSummary` are
+  shared, so administrators see exactly what the student saw.
+- **Scenario editor:** one generic `RowEditor` dialog driven by field specifications handles resources, events and
+  actions; select options (resource keys, investigation actions) are derived from the current definition, which
+  prevents most reference errors before the backend validator runs.
+- **Responsive layout:** the three-column simulation console is used from the `xl` breakpoint; below it the log viewer
+  spans the full width.
+- **Lesson learned:** React effects must use a block body — an expression body returned a Promise from
+  `scrollIntoView` in current Chrome and crashed the page (implementation log, Steps 8–10).

@@ -101,4 +101,44 @@ Every error uses the same body (`ApiError`):
 }
 ```
 
-*(Implementation details for each module are added below as the phases are completed.)*
+Additional endpoint implemented during Phase 5: `PUT /api/simulations/{id}/events/{eventId}/flag` `{flagged}` —
+add/remove a log entry on the student's evidence board.
+
+## 3. Implementation notes
+
+### 3.1 Transaction design
+| Operation | Transactions | Why |
+|-----------|-------------|-----|
+| Normal reads/writes | one `@Transactional` service method | standard unit of work |
+| Complete simulation | TX1 (state + score + result + AI snapshot) → AI call (no TX) → TX2 (attach feedback) | no DB connection/locks held during a slow external call; the score is saved even if the AI fails |
+| Hint / question | TX1 (ownership, state, snapshot) → AI call → TX2 (hint counter) | same; the penalty is applied only when a hint was delivered |
+| Concurrency | `@Version lock_version` on `simulations`, partial unique index for one active attempt | double clicks or parallel tabs cannot corrupt the state |
+
+`open-in-view` is disabled, so every DTO is mapped inside the service transaction. Methods that need a transaction
+inside the same class use `TransactionTemplate` explicitly (self-invocation of `@Transactional` would bypass the
+proxy — see implementation log Step 5).
+
+### 3.2 Error handling
+`GlobalExceptionHandler` maps `ApiException` (status + code), Bean Validation errors (400 `VALIDATION_FAILED` with
+field errors), malformed JSON (400), unknown routes (404) and unexpected exceptions (500 without internal details,
+full stack trace in the log). Spring Security's entry point and access-denied handler write the same JSON body for
+401/403.
+
+### 3.3 Module summary
+
+| Module | Main classes |
+|--------|-------------|
+| security | `SecurityConfig`, `JwtConfig`, `JwtTokenService`, `AuthUser`, `AuthUserArgumentResolver` |
+| auth / user | `AuthController`, `AuthService`, `User`, `Role`, `UserRepository`, `DemoDataInitializer` |
+| scenario | `Scenario` (+5 child entities), `ScenarioDefinition`, `ScenarioDefinitionValidator`, `ScenarioMapper`, `ScenarioService`, `ScenarioSeeder`, `ScenarioController` |
+| simulation | `Simulation` (+4 child entities, `SimulationResult`), `SimulationStateMachine`, `SimulationEngine`, `SimulationService`, `SimulationAssistantService`, `SimulationSnapshotFactory`, `SimulationMapper`, `SimulationController` |
+| scoring | `ScoringEngine`, `ScoreResult` |
+| ai | `AiProvider`, `ClaudeAiProvider`, `MockAiProvider`, `AiConfig`, `AiGateway`, `AiPromptBuilder`, `AiOutputValidator`, `AiInteraction`, `TutorService`, `ScenarioVariationService` |
+| progress | `ProgressService`, `ProgressController`, `ProgressStats` |
+| analytics | `AnalyticsService` (SQL via `JdbcClient`) |
+| admin | `AdminService`, `AdminController` |
+
+### 3.4 Seed data
+`ScenarioSeeder` imports `resources/scenarios/*.json` on start-up if the slug does not exist (validated like admin
+input; an invalid file stops the start-up). `DemoDataInitializer` creates demo accounts only when their passwords are
+provided through environment variables.

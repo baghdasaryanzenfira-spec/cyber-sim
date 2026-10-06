@@ -21,7 +21,7 @@ Chronological technical history of the project. Status terms:
 | 10 | Admin panel | done |
 | 11 | Testing | done (backend 74 tests; no automated UI tests) |
 | 12 | Docker/deployment | done |
-| 13 | Documentation review | in progress |
+| 13 | Documentation review | done (English); Armenian translation in docs/hy |
 
 ---
 
@@ -253,3 +253,17 @@ end-to-end smoke script (login → simulation → hint → question → completi
 the admin API) passed through nginx. The score of the scripted run (58) matched the hand calculation. **VERIFIED.**
 
 **Problem:** a Docker BuildKit cache error ("lease does not exist") on one rebuild — transient, a retry succeeded.
+
+---
+
+## Step 13 — Documentation review (2026-10-06)
+
+**Completed:** README, documents 01–16 and `thesis-figures.md` reviewed against the implemented code; placeholders in
+06, 07 and 09 replaced with implementation notes and a captured AI request/response example; 11 (testing), 12
+(deployment), 13 (user guide), 14 (admin guide), 15 (thesis material) and the 20-figure plan written.
+Armenian translations of all documents created in `docs/hy` (same file names).
+
+**Current limitations (honest status):**
+- Real Claude API: implemented, unit-tested with a mocked provider, **not runtime-verified** (no API key).
+- LocalStack: optional Compose profile, **not runtime-verified**, not used by scenarios.
+- No automated frontend tests; no refresh tokens / login rate limiting.
