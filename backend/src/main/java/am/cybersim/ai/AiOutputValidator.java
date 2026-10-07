@@ -29,6 +29,7 @@ public class AiOutputValidator {
 
     static final int MAX_HINT_CHARS = 800;
     static final int MAX_ANSWER_CHARS = 2000;
+    static final int MAX_TRANSLATION_CHARS = 12_000;
     static final int MAX_LIST_ITEMS = 8;
     static final int MAX_ITEM_CHARS = 500;
     private static final Pattern CONTROL_CHARS = Pattern.compile("[\\p{Cntrl}&&[^\n\t]]");
@@ -82,6 +83,19 @@ public class AiOutputValidator {
     /** Only parsing here; the scenario rules are enforced by {@code ScenarioVariationService}. */
     public ScenarioDefinition parseScenarioDefinition(String json) {
         return parse(json, ScenarioDefinition.class);
+    }
+
+    /**
+     * A translation may legitimately be longer than its source (Armenian runs longer than English), so the only
+     * limit is an absolute one; a response far longer than the source means the model explained instead of
+     * translating and is rejected.
+     */
+    public String validateTranslation(String text, String source) {
+        String clean = validateText(text, MAX_TRANSLATION_CHARS);
+        if (clean.length() > Math.max(200, source.length() * 3)) {
+            throw new AiProviderException("Translation is implausibly long for its source");
+        }
+        return clean;
     }
 
     private <T> T parse(String json, Class<T> type) {

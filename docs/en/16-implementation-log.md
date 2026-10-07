@@ -267,3 +267,39 @@ Armenian translations of all documents created in `docs/hy` (same file names).
 - Real Claude API: implemented, unit-tested with a mocked provider, **not runtime-verified** (no API key).
 - LocalStack: optional Compose profile, **not runtime-verified**, not used by scenarios.
 - No automated frontend tests; no refresh tokens / login rate limiting.
+
+
+## Step 14 — Bilingual UI and on-demand AI translation (2026-10-07)
+
+**Completed:**
+- UI localisation (ADR-11): `react-i18next`, English and Armenian bundles with `hy.ts` typed as `typeof en` so a
+  missing key is a compile error; EN/ՀԱՅ switcher in the app bar and on the login card, persisted in
+  `localStorage`. Backend enums are translated in an `enums` namespace. `@fontsource/noto-sans-armenian` is
+  self-hosted beside Inter, which has no Armenian glyphs.
+- On-demand content translation (ADR-12): `POST /api/ai/translate` plus a `TranslateButton` next to each piece of
+  content — briefing, objectives, action descriptions, every log line, AI answers and feedback, recommendations.
+  Nothing is stored.
+
+**Design that was built and then removed.** The first implementation stored a translation per scenario: a
+`translations` jsonb column, an admin "translate this scenario" workflow with review-before-save, and a
+render-time overlay keyed on `Accept-Language`. It worked and was fully tested, but it was the wrong shape — it
+duplicated the content into a second copy to keep in sync, required an admin pass before any scenario could be
+read in Armenian, and left every newly authored scenario untranslated. Replacing it with a per-text button on
+request removed a database column, a migration of content, an admin workflow and the overlay code, and it also
+resolved the authenticity trade-off: telemetry stays in English, and only the reader who needs it asks for a
+translation.
+
+**Problems found by running it, not by the tests:**
+- `ai_interactions` has a `ck_ai_type` CHECK constraint enumerating the task types; `TRANSLATION` was added to
+  the Java enum only, so the first call returned 500. The unit tests never touched the database. Fixed in
+  `V2__ai_translation_task.sql`.
+- After deleting the superseded migration, Flyway failed with "Found more than one migration with version 2" —
+  the deleted file was still in `target/classes`. `mvnw clean` was needed, which is worth knowing when a
+  migration is ever renamed.
+- The translate result panel used `display: contents`, which made it a flex item of the header row it sat in and
+  overlapped the page. Fixed by making the component a normal block and placing it after the text it translates.
+
+**Current limitations (honest status):**
+- Real Claude translation: implemented and validated, **not runtime-verified** (no API key). With
+  `AI_PROVIDER=mock` the offline tutor echoes the source text and the UI says why.
+- Translations are not cached, so translating the same text twice costs two API calls.

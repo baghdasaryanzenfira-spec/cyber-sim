@@ -4,6 +4,7 @@ import {
   Box, Button, Grid, List, ListItem, ListItemIcon, ListItemText, MenuItem, Paper, Stack, TextField, Typography,
 } from '@mui/material'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
 import { errorMessage } from '../api/client'
 import { progressApi, scenarioApi, simulationApi } from '../api/endpoints'
@@ -12,9 +13,11 @@ import { CategoryChip, DifficultyChip } from '../components/Chips'
 import { ErrorAlert, Loading } from '../components/Feedback'
 import { PageHeader } from '../components/Layout'
 import { ScenarioCard } from '../components/ScenarioCard'
+import { TranslateButton } from '../components/TranslateButton'
 import { useLoad } from '../hooks/useLoad'
 
 export function ScenarioListPage() {
+  const { t } = useTranslation()
   const scenarios = useLoad(scenarioApi.list)
   const progress = useLoad(progressApi.me)
   const [difficulty, setDifficulty] = useState<Difficulty | ''>('')
@@ -27,18 +30,18 @@ export function ScenarioListPage() {
 
   return (
     <>
-      <PageHeader title="Scenarios" subtitle="Choose a simulated cloud incident to investigate." />
+      <PageHeader title={t('scenarios.title')} subtitle={t('scenarios.subtitle')} />
       <ErrorAlert message={scenarios.error} />
       <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
-        <TextField select size="small" label="Difficulty" value={difficulty} sx={{ minWidth: 180 }}
+        <TextField select size="small" label={t('scenarios.difficulty')} value={difficulty} sx={{ minWidth: 180 }}
           onChange={(e) => setDifficulty(e.target.value as Difficulty | '')}>
-          <MenuItem value="">All</MenuItem>
-          {(['BEGINNER', 'INTERMEDIATE', 'ADVANCED'] as Difficulty[]).map((d) => <MenuItem key={d} value={d}>{d}</MenuItem>)}
+          <MenuItem value="">{t('common.all')}</MenuItem>
+          {(['BEGINNER', 'INTERMEDIATE', 'ADVANCED'] as Difficulty[]).map((d) => <MenuItem key={d} value={d}>{t(`enums.difficulty.${d}`)}</MenuItem>)}
         </TextField>
-        <TextField select size="small" label="Category" value={category} sx={{ minWidth: 200 }}
+        <TextField select size="small" label={t('scenarios.category')} value={category} sx={{ minWidth: 200 }}
           onChange={(e) => setCategory(e.target.value as Category | '')}>
-          <MenuItem value="">All</MenuItem>
-          {categories.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+          <MenuItem value="">{t('common.all')}</MenuItem>
+          {categories.map((c) => <MenuItem key={c} value={c}>{t(`enums.category.${c}`)}</MenuItem>)}
         </TextField>
       </Stack>
       <Grid container spacing={2}>
@@ -49,12 +52,13 @@ export function ScenarioListPage() {
           </Grid>
         ))}
       </Grid>
-      {filtered.length === 0 && <Typography color="text.secondary">No scenarios match the filter.</Typography>}
+      {filtered.length === 0 && <Typography color="text.secondary">{t('scenarios.noMatch')}</Typography>}
     </>
   )
 }
 
 export function ScenarioDetailPage() {
+  const { t } = useTranslation()
   const { id } = useParams()
   const navigate = useNavigate()
   const scenario = useLoad(() => scenarioApi.get(Number(id)), [id])
@@ -80,7 +84,7 @@ export function ScenarioDetailPage() {
     <>
       <PageHeader title={s.title} subtitle={s.summary} actions={
         <Button variant="contained" size="large" startIcon={<PlayArrowIcon />} onClick={start} disabled={busy}>
-          Start simulation
+          {t('scenarios.startSimulation')}
         </Button>
       } />
       <ErrorAlert message={error} />
@@ -91,15 +95,16 @@ export function ScenarioDetailPage() {
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 7 }}>
           <Paper sx={{ p: 3 }}>
-            <Typography variant="overline" color="primary">Incident briefing</Typography>
+            <Typography variant="overline" color="primary">{t('scenarios.briefing')}</Typography>
             {s.description.split('\n').filter(Boolean).map((para, i) => (
               <Typography key={i} sx={{ mt: 1.5, lineHeight: 1.7 }}>{para}</Typography>
             ))}
+            <Box sx={{ mt: 1.5 }}><TranslateButton text={s.description} /></Box>
           </Paper>
         </Grid>
         <Grid size={{ xs: 12, md: 5 }}>
           <Paper sx={{ p: 3 }}>
-            <Typography variant="overline" color="primary">Learning objectives</Typography>
+            <Typography variant="overline" color="primary">{t('scenarios.objectives')}</Typography>
             <List dense>
               {s.learningObjectives.map((o) => (
                 <ListItem key={o} disableGutters>
@@ -108,11 +113,12 @@ export function ScenarioDetailPage() {
                 </ListItem>
               ))}
             </List>
+            <TranslateButton text={s.learningObjectives.join('\n')} />
             <Box sx={{ mt: 2, color: 'text.secondary' }}>
-              <Typography variant="body2">Estimated time: {s.estimatedMinutes} minutes</Typography>
-              <Typography variant="body2">Simulated cloud resources: {s.resourceCount}</Typography>
+              <Typography variant="body2">{t('scenarios.estimatedTime', { count: s.estimatedMinutes })}</Typography>
+              <Typography variant="body2">{t('scenarios.resourceCount', { count: s.resourceCount })}</Typography>
               <Typography variant="body2" sx={{ mt: 1 }}>
-                The environment is fully simulated and isolated — no real systems are affected.
+                {t('scenarios.isolatedNote')}
               </Typography>
             </Box>
           </Paper>

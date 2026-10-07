@@ -11,19 +11,19 @@ backend/
     │   ├── CyberSimApplication.java
     │   ├── common/             ApiError, GlobalExceptionHandler, domain exceptions
     │   ├── config/             AppProperties, OpenApiConfig, ClockConfig, CORS
-    │   ├── security/           SecurityConfig, JwtTokenService, CurrentUser
+    │   ├── security/           SecurityConfig, JwtConfig, JwtTokenService, AuthUser, AuthUserArgumentResolver
     │   ├── auth/               AuthController, AuthService, dto/
-    │   ├── user/               User, Role, UserRepository, UserService, DemoDataInitializer
+    │   ├── user/               User, Role, UserRepository, DemoDataInitializer
     │   ├── scenario/           Scenario + child entities, ScenarioService, ScenarioDefinition(Validator), ScenarioSeeder
-    │   ├── simulation/         Simulation + child entities, SimulationEngine, SimulationStateMachine, SimulationService
+    │   ├── simulation/         Simulation + child entities, SimulationEngine, SimulationStateMachine, SimulationService, SimulationAssistantService
     │   ├── scoring/            ScoringEngine, ScoreResult
-    │   ├── ai/                 AiProvider, ClaudeAiProvider, MockAiProvider, AiAssistantService, AiPromptBuilder, AiOutputValidator
+    │   ├── ai/                 AiProvider, ClaudeAiProvider, MockAiProvider, AiGateway, TutorService, ScenarioVariationService, TranslationService, AiPromptBuilder, AiOutputValidator
     │   ├── progress/           ProgressService, ProgressController
     │   ├── analytics/          AnalyticsService
-    │   └── admin/              Admin* controllers
+    │   └── admin/              AdminController, AdminService
     └── main/resources/
         ├── application.yml
-        ├── db/migration/       Flyway V1__..., V2__...
+        ├── db/migration/       Flyway V1__initial_schema.sql, V2__ai_translation_task.sql
         └── scenarios/          *.json seed scenario definitions
 ```
 
@@ -64,15 +64,21 @@ Live documentation: Swagger UI at `/swagger-ui.html`, OpenAPI JSON at `/v3/api-d
 | POST | `/api/simulations/{id}/assistant/ask` | `{question}` free question |
 | GET | `/api/simulations/{id}/assistant/messages` | Assistant conversation history |
 
+### AI (any signed-in user)
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/ai/translate` | `{text, language}` → the same text in that language; nothing is stored (ADR-12) |
+
 ### Progress (student)
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/progress/me` | Totals, per-category stats, recent attempts, AI recommendations |
+| GET | `/api/progress/me` | Totals, per-category stats, per-scenario progress, score history, recent attempts |
+| GET | `/api/progress/me/recommendations` | AI learning recommendations based on my history |
 
 ### Admin (`ADMIN` role)
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/admin/users` | Users with attempt statistics (paged) |
+| GET | `/api/admin/users` | Users with attempt statistics |
 | GET | `/api/admin/users/{id}` | User detail + progress |
 | PATCH | `/api/admin/users/{id}/status` | `{enabled}` |
 | GET | `/api/admin/scenarios` | All scenarios incl. inactive |
@@ -133,7 +139,7 @@ full stack trace in the log). Spring Security's entry point and access-denied ha
 | scenario | `Scenario` (+5 child entities), `ScenarioDefinition`, `ScenarioDefinitionValidator`, `ScenarioMapper`, `ScenarioService`, `ScenarioSeeder`, `ScenarioController` |
 | simulation | `Simulation` (+4 child entities, `SimulationResult`), `SimulationStateMachine`, `SimulationEngine`, `SimulationService`, `SimulationAssistantService`, `SimulationSnapshotFactory`, `SimulationMapper`, `SimulationController` |
 | scoring | `ScoringEngine`, `ScoreResult` |
-| ai | `AiProvider`, `ClaudeAiProvider`, `MockAiProvider`, `AiConfig`, `AiGateway`, `AiPromptBuilder`, `AiOutputValidator`, `AiInteraction`, `TutorService`, `ScenarioVariationService` |
+| ai | `AiProvider`, `ClaudeAiProvider`, `MockAiProvider`, `AiConfig`, `AiGateway`, `AiPromptBuilder`, `AiOutputValidator`, `AiInteraction`, `TutorService`, `ScenarioVariationService`, `TranslationService` |
 | progress | `ProgressService`, `ProgressController`, `ProgressStats` |
 | analytics | `AnalyticsService` (SQL via `JdbcClient`) |
 | admin | `AdminService`, `AdminController` |

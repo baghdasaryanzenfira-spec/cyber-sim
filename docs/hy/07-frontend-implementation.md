@@ -2,7 +2,7 @@
 
 # 07 — Հաճախորդային մասի (frontend) իրականացում
 
-## 1. Կառուցվածքը (պլանավորված Փուլ 0-ում)
+## 1. Կառուցվածքը
 
 ```
 frontend/
@@ -11,16 +11,19 @@ frontend/
 ├── Dockerfile              build with Node, serve with nginx (+ /api reverse proxy)
 └── src/
     ├── main.tsx            React root, ThemeProvider, Router
+    ├── App.tsx             երթուղիների սահմանումներ
     ├── theme.ts            Dark "SOC" theme
-    ├── api/                axios client (JWT interceptor), typed API functions, types.ts
-    ├── auth/               AuthContext, ProtectedRoute, RoleRoute
-    ├── components/         Layout, StatusChip, SeverityChip, ScoreGauge, ...
+    ├── api/                client.ts (axios + JWT interceptor), endpoints.ts (տիպիզացված API ֆունկցիաներ), types.ts
+    ├── auth/               AuthContext, guards.tsx (RequireAuth, RequireAdmin)
+    ├── hooks/              useLoad (load / error / reload վիճակ)
+    ├── i18n/               index.ts (i18next կարգավորում), en.ts, hy.ts (UI-ի թարգմանություններ)
+    ├── components/         Layout, Chips, StatTile, ScenarioCard, ResultView, ProgressView, Feedback, LanguageSwitcher
     └── pages/
-        ├── LoginPage, RegisterPage
-        ├── DashboardPage, ScenarioListPage, ScenarioDetailPage
-        ├── simulation/     ActiveSimulationPage + panels (Resources, Logs, Evidence, Actions, Timeline, Assistant)
+        ├── AuthPages.tsx   մուտք + գրանցում
+        ├── DashboardPage, ScenarioPages (կատալոգ + briefing)
+        ├── simulation/     ActiveSimulationPage + վահանակներ (Resources, Logs՝ ներառյալ ապացույցների տախտակը, Actions, Timeline, Assistant)
         ├── ResultPage, HistoryPage (progress)
-        └── admin/          AdminDashboard, AdminUsers, AdminScenarios, ScenarioEditor, AdminAttempts, AdminAnalytics
+        └── admin/          AdminDashboardPage, AdminUsersPages, AdminScenarioPages + RowEditor, AdminAttemptsPages, AdminAnalyticsPage
 ```
 
 ## 2. Հիմնական որոշումներ
@@ -31,6 +34,27 @@ frontend/
 | Տիպավորված API շերտ (`api/*.ts`), որը կրկնում է backend-ի DTO-ները | Պայմանագրի (contract) անհամապատասխանությունների հայտնաբերում կոմպիլյացիայի ժամանակ | Չտիպավորված axios կանչեր կոմպոնենտներում |
 | MUI՝ հատուկ մուգ թեմայով | Պրոֆեսիոնալ տեսք էկրանապատկերների համար՝ նվազագույն հատուկ CSS-ով | Tailwind |
 | JWT-ը պահվում է `localStorage`-ում | Պարզ է bearer տոկեններով SPA-ի համար. ռիսկը մեղմվում է կարճ ժամկետով և React-ի խիստ էսկեյփինգով (escaping) (առանց `dangerouslySetInnerHTML`) | HttpOnly cookie (պահանջում է CSRF պաշտպանություն և same-site կարգավորում) — փաստաթղթավորված է որպես ապագա բարելավում |
+| `react-i18next`՝ անգլերեն/հայերեն ինտերֆեյսի համար | Փաստացի ստանդարտ, առանց provider-ի ավելորդ կոդի (`useTranslation` hook), ինտերպոլացիա և լեզվի փոփոխություն առանց էջի վերաբեռնման | Ձեռքով գրված context (առանց ինտերպոլացիայի և հոգնակիի). URL-ով նախածանցված երթուղիներ (`/hy/...`) — ավելորդ է մեկ օգտատիրոջ ուսումնական գործիքի համար |
+
+### ADR-11 — Ինտերֆեյսի թարգմանությունը տիպիզացված ռեսուրսների փաթեթներով
+
+- **Ինչ.** Ինտերֆեյսի բոլոր տեքստերը գտնվում են `src/i18n/en.ts` և `src/i18n/hy.ts` ֆայլերում՝ խմբավորված ըստ
+  ոլորտների (`common`, `nav`, `auth`, `dashboard`, `scenarios`, `sim`, `result`, `history`, `admin`, `editor`, `enums`)։
+  Կոմպոնենտները կարդում են դրանք `useTranslation()`-ի միջոցով. `hy.ts`-ը հայտարարված է որպես `typeof en`, ուստի
+  TypeScript կոմպիլյատորը մերժում է բացակայող կամ սխալ գրված բանալին — երկու փաթեթները չեն կարող շեղվել իրարից։
+- **Ծածկույթ.** Միայն ինտերֆեյսի տարրերը։ Սցենարների *բովանդակությունը* (վերնագրեր, մատյանների հաղորդագրություններ,
+  գործողությունների անվանումներ, AI պատասխաններ) գալիս է տվյալների բազայից և ցուցադրվում է ճիշտ այնպես, ինչպես հեղինակել է
+  ադմինիստրատորը, քանի որ սցենարը ադմինիստրատորին պատկանող տվյալ է. դրա թարգմանությունը կպահանջեր պահել թարգմանություն
+  սցենարի յուրաքանչյուր դաշտի համար (նշված է որպես ապագա ընդլայնում)։
+- **Փոխարկում.** `LanguageSwitcher`-ը (EN / ՀԱՅ) տեղադրված է վերին վահանակում և մուտքի քարտում։ Ընտրությունը պահվում է
+  `localStorage`-ում՝ `cybersim.lang` բանալիով, և կիրառվում է `<html lang>`-ի վրա. կարդալն ու գրելը փաթաթված են
+  `try/catch`-ով, ուստի գաղտնի դիտարկման ռեժիմում համակարգը վերադառնում է լռելյայն լեզվին (անգլերեն)՝ առանց սխալի։
+- **Enum-ների պիտակները.** backend-ի enum-ները (`SimulationStatus`, `Difficulty`, `Category`, `Severity`,
+  `ActionOutcome`, `ScoreItemKind`) թարգմանվում են `enums` տարածությունում և ցուցադրվում chip կոմպոնենտների կողմից, ուստի
+  կարգավիճակն ու կարևորությունը կարդացվում են ընտրված լեզվով, իսկ API պայմանագիրը մնում է անփոփոխ։
+- **Տառատեսակներ.** Inter-ը հայկական գլիֆներ չունի, ուստի `@fontsource/noto-sans-armenian`-ը տեղադրված է իր կողքին և
+  դրված է տառատեսակների շղթայում երկրորդ տեղում. դիտարկիչն ընտրում է այն ըստ յուրաքանչյուր գլիֆի՝ թողնելով լատինատառ
+  տեքստը Inter-ի վրա։ Երկուսն էլ ներառված են բիլդում, ուստի հարթակը արտաքին տառատեսակների CDN-ի կարիք չունի։
 
 ## 3. Ակտիվ սիմուլյացիայի էջի դասավորությունը
 
@@ -68,8 +92,12 @@ frontend/
   համար — թույլտվությունները պարտադրում է backend-ը)։
 - **Տվյալների բեռնում.** փոքր `useLoad` hook (բեռնում, սխալ, վերաբեռնում, տեղային թարմացում)՝ տվյալներ ստանալու գրադարանի փոխարեն —
   հավելվածն ունի քիչ և պարզ հարցումներ։
-- **Վերաօգտագործում ուսանողի և ադմինիստրատորի տեսքերի միջև.** `ResultView`, `LogsPanel`, `TimelinePanel` և `ProgressSummary` կոմպոնենտներն
+- **Վերաօգտագործում ուսանողի և ադմինիստրատորի տեսքերի միջև.** `ResultView`, `LogsPanel`, `TimelinePanel` և `ProgressView` կոմպոնենտներն
   ընդհանուր են, ուստի ադմինիստրատորները տեսնում են ճիշտ այն, ինչ տեսել է ուսանողը։
+- **Բովանդակության թարգմանություն.** `TranslateButton`-ը փոքր ներտողային հղում է՝ տեղադրված բովանդակության
+  յուրաքանչյուր տեքստի կողքին (նկարագրություն, նպատակներ, գործողությունների նկարագրություններ, մատյանի
+  յուրաքանչյուր գրառում, AI պատասխաններ և հետադարձ կապ, առաջարկություններ)։ Այն կանչում է
+  `POST /api/ai/translate`-ը այդ մեկ տողի համար և ցույց տալիս արդյունքը ներքևում. ոչինչ չի պահվում (ADR-12)։
 - **Սցենարների խմբագրիչ.** մեկ ընդհանրական `RowEditor` երկխոսության պատուհան, որը ղեկավարվում է դաշտերի սպեցիֆիկացիաներով, մշակում է ռեսուրսները,
   իրադարձությունները և գործողությունները. ընտրության տարբերակները (ռեսուրսների բանալիներ, հետազոտական գործողություններ) ստացվում են ընթացիկ սահմանումից, ինչը
   կանխում է հղումային սխալների մեծ մասը դեռ մինչև backend-ի վավերացնողի աշխատելը։

@@ -36,7 +36,7 @@ flowchart LR
 | `POSTGRES_PASSWORD` | — (պարտադիր) | տվյալների բազայի գաղտնաբառ |
 | `JWT_SECRET` | — (պարտադիր Docker-ում. պատահական՝ տեղային մշակման ժամանակ) | HS256 ստորագրման բանալի, ≥ 32 նիշ |
 | `JWT_EXPIRATION_MINUTES` | 60 | թոքենի կյանքի տևողություն |
-| `CORS_ALLOWED_ORIGINS` | `http://localhost:3000` | SPA-ի մշակման սերվերը backend-ի հետ գործարկելու համար |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:3000` (Compose) / `http://localhost:5173` (հավելված) | SPA-ի մշակման սերվերը backend-ի հետ գործարկելու համար |
 | `APP_DEMO_DATA_ENABLED` | `true` (Compose) / `false` (հավելված) | ստեղծել ցուցադրական ադմինիստրատոր/ուսանող |
 | `DEMO_ADMIN_EMAIL/PASSWORD`, `DEMO_STUDENT_EMAIL/PASSWORD` | էլ. փոստերը նախապես սահմանված են, գաղտնաբառերը՝ դատարկ | ցուցադրական հաշիվները ստեղծվում են միայն գաղտնաբառը սահմանված լինելու դեպքում |
 | `AI_PROVIDER` | `mock` | `mock` կամ `claude` |
@@ -44,7 +44,10 @@ flowchart LR
 | `AI_MODEL` | `claude-opus-5-5` | օր.՝ `claude-sonnet-5-5`, `claude-haiku-4-5`՝ ավելի ցածր արժեքի համար |
 | `AI_EFFORT` | `low` | `low`/`medium`/`high`/`xhigh`/`max` |
 | `AI_TIMEOUT_SECONDS` | 30 | ժամանակի սահմանաչափ յուրաքանչյուր փորձի համար |
+| `AI_MAX_TOKENS` | 2048 | ելքային տոկենների առավելագույն քանակ մեկ AI պատասխանի համար |
 | `AI_SERVER_SIDE_FALLBACK` | `true` | API-ից խնդրել մերժված հարցումները կրկնել պահուստային մոդելով |
+| `APP_SCENARIO_SEED_ENABLED` | `true` | գործարկման ժամանակ ներմուծել `resources/scenarios/*.json` ֆայլերը |
+| `POSTGRES_PORT`, `BACKEND_PORT`, `FRONTEND_PORT` | 5432 / 8080 / 3000 | հրապարակված host պորտեր |
 
 ## 3. Հրամաններ
 

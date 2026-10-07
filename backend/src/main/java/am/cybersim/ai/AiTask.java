@@ -6,5 +6,6 @@ public enum AiTask {
     QUESTION,
     FEEDBACK,
     RECOMMENDATION,
-    VARIATION
+    VARIATION,
+    TRANSLATION
 }

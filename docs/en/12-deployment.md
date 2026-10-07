@@ -34,7 +34,7 @@ flowchart LR
 | `POSTGRES_PASSWORD` | — (required) | database password |
 | `JWT_SECRET` | — (required in Docker; random in local dev) | HS256 signing key, ≥ 32 characters |
 | `JWT_EXPIRATION_MINUTES` | 60 | token lifetime |
-| `CORS_ALLOWED_ORIGINS` | `http://localhost:3000` | for running the SPA dev server against the backend |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:3000` (Compose) / `http://localhost:5173` (app) | for running the SPA dev server against the backend |
 | `APP_DEMO_DATA_ENABLED` | `true` (Compose) / `false` (app) | create demo admin/student |
 | `DEMO_ADMIN_EMAIL/PASSWORD`, `DEMO_STUDENT_EMAIL/PASSWORD` | e-mails preset, passwords empty | demo accounts are created only if the password is set |
 | `AI_PROVIDER` | `mock` | `mock` or `claude` |
@@ -42,7 +42,10 @@ flowchart LR
 | `AI_MODEL` | `claude-opus-5-5` | e.g. `claude-sonnet-5-5`, `claude-haiku-4-5` for lower cost |
 | `AI_EFFORT` | `low` | `low`/`medium`/`high`/`xhigh`/`max` |
 | `AI_TIMEOUT_SECONDS` | 30 | per-attempt timeout |
+| `AI_MAX_TOKENS` | 2048 | maximum output tokens per AI response |
 | `AI_SERVER_SIDE_FALLBACK` | `true` | ask the API to retry refused requests on a fallback model |
+| `APP_SCENARIO_SEED_ENABLED` | `true` | import `resources/scenarios/*.json` on start-up |
+| `POSTGRES_PORT`, `BACKEND_PORT`, `FRONTEND_PORT` | 5432 / 8080 / 3000 | published host ports |
 
 ## 3. Commands
 

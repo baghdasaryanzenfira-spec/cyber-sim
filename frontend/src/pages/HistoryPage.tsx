@@ -2,15 +2,18 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import {
   Alert, Box, Button, Card, CardContent, Grid, Paper, Skeleton, Table, TableBody, TableCell, TableHead, TableRow, Typography,
 } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 import { Link as RouterLink } from 'react-router'
 import { progressApi, simulationApi } from '../api/endpoints'
 import { CategoryChip, StatusChip, scoreColor } from '../components/Chips'
 import { ErrorAlert, Loading } from '../components/Feedback'
 import { PageHeader } from '../components/Layout'
 import { ProgressSummary } from '../components/ProgressView'
+import { TranslateButton } from '../components/TranslateButton'
 import { useLoad } from '../hooks/useLoad'
 
 export function HistoryPage() {
+  const { t } = useTranslation()
   const progress = useLoad(progressApi.me)
   const history = useLoad(simulationApi.list)
   const recommendations = useLoad(progressApi.recommendations)
@@ -19,13 +22,13 @@ export function HistoryPage() {
 
   return (
     <>
-      <PageHeader title="Progress & history" subtitle="Your training results and personalised study recommendations." />
+      <PageHeader title={t('history.title')} subtitle={t('history.subtitle')} />
       <ErrorAlert message={progress.error ?? history.error} />
       {progress.data && <ProgressSummary progress={progress.data} />}
 
       <Paper sx={{ p: 2, mb: 2, border: '1px solid rgba(167,139,250,0.3)' }}>
         <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <AutoAwesomeIcon color="secondary" /> AI learning recommendations
+          <AutoAwesomeIcon color="secondary" /> {t('history.recommendations')}
         </Typography>
         {recommendations.loading && <Skeleton height={80} />}
         {recommendations.error && <Alert severity="warning">{recommendations.error}</Alert>}
@@ -36,7 +39,8 @@ export function HistoryPage() {
                 <CardContent>
                   <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{r.topic}</Typography>
                   <Box sx={{ my: 1 }}><CategoryChip category={r.category} /></Box>
-                  <Typography variant="body2" color="text.secondary">{r.reason}</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>{r.reason}</Typography>
+                  <TranslateButton text={`${r.topic}\n${r.reason}`} />
                 </CardContent>
               </Card>
             </Grid>
@@ -45,12 +49,12 @@ export function HistoryPage() {
       </Paper>
 
       <Paper sx={{ p: 2 }}>
-        <Typography variant="h6" gutterBottom>Simulation history</Typography>
+        <Typography variant="h6" gutterBottom>{t('history.simulationHistory')}</Typography>
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>Started</TableCell><TableCell>Scenario</TableCell><TableCell>Status</TableCell>
-              <TableCell>Actions</TableCell><TableCell>Hints</TableCell><TableCell>Score</TableCell><TableCell />
+              <TableCell>{t('history.started')}</TableCell><TableCell>{t('history.scenario')}</TableCell><TableCell>{t('history.status')}</TableCell>
+              <TableCell>{t('history.actions')}</TableCell><TableCell>{t('history.hints')}</TableCell><TableCell>{t('history.score')}</TableCell><TableCell />
             </TableRow>
           </TableHead>
           <TableBody>
@@ -67,14 +71,14 @@ export function HistoryPage() {
                   </Typography>
                 </TableCell>
                 <TableCell align="right">
-                  {s.status === 'COMPLETED' && <Button size="small" component={RouterLink} to={`/simulations/${s.id}/result`}>Result</Button>}
+                  {s.status === 'COMPLETED' && <Button size="small" component={RouterLink} to={`/simulations/${s.id}/result`}>{t('history.result')}</Button>}
                   {['CREATED', 'RUNNING', 'INVESTIGATING', 'RESPONDING'].includes(s.status) &&
-                    <Button size="small" component={RouterLink} to={`/simulations/${s.id}`}>Resume</Button>}
+                    <Button size="small" component={RouterLink} to={`/simulations/${s.id}`}>{t('history.resume')}</Button>}
                 </TableCell>
               </TableRow>
             ))}
             {history.data?.length === 0 && (
-              <TableRow><TableCell colSpan={7}><Typography color="text.secondary">No simulations yet.</Typography></TableCell></TableRow>
+              <TableRow><TableCell colSpan={7}><Typography color="text.secondary">{t('history.noSimulations')}</Typography></TableCell></TableRow>
             )}
           </TableBody>
         </Table>

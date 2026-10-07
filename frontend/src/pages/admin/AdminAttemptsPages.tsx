@@ -3,6 +3,7 @@ import {
   TextField, Typography,
 } from '@mui/material'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link as RouterLink, useParams } from 'react-router'
 import { adminApi } from '../../api/endpoints'
 import type { SimulationStatus } from '../../api/types'
@@ -18,6 +19,7 @@ import { TimelinePanel } from '../simulation/TimelinePanel'
 const STATUSES: SimulationStatus[] = ['CREATED', 'RUNNING', 'INVESTIGATING', 'RESPONDING', 'COMPLETED', 'ABANDONED']
 
 export function AttemptsTable({ filter }: { filter: { userId?: number; scenarioId?: number; status?: SimulationStatus } }) {
+  const { t } = useTranslation()
   const [page, setPage] = useState(0)
   const [size, setSize] = useState(10)
   const attempts = useLoad(() => adminApi.attempts({ ...filter, page, size }),
@@ -29,8 +31,8 @@ export function AttemptsTable({ filter }: { filter: { userId?: number; scenarioI
       <Table size="small">
         <TableHead>
           <TableRow>
-            <TableCell>#</TableCell><TableCell>Started</TableCell><TableCell>Student</TableCell><TableCell>Scenario</TableCell>
-            <TableCell>Status</TableCell><TableCell>Actions</TableCell><TableCell>Hints</TableCell><TableCell>Score</TableCell><TableCell />
+            <TableCell>#</TableCell><TableCell>{t('history.started')}</TableCell><TableCell>{t('admin.student')}</TableCell><TableCell>{t('admin.scenario')}</TableCell>
+            <TableCell>{t('admin.status')}</TableCell><TableCell>{t('history.actions')}</TableCell><TableCell>{t('history.hints')}</TableCell><TableCell>{t('admin.score')}</TableCell><TableCell />
           </TableRow>
         </TableHead>
         <TableBody>
@@ -44,7 +46,7 @@ export function AttemptsTable({ filter }: { filter: { userId?: number; scenarioI
               <TableCell>{a.actionCount}</TableCell>
               <TableCell>{a.hintsUsed}</TableCell>
               <TableCell><Typography color={scoreColor(a.scorePercent)} sx={{ fontWeight: 700 }}>{a.scorePercent ?? '—'}</Typography></TableCell>
-              <TableCell align="right"><Button size="small" component={RouterLink} to={`/admin/attempts/${a.id}`}>Details</Button></TableCell>
+              <TableCell align="right"><Button size="small" component={RouterLink} to={`/admin/attempts/${a.id}`}>{t('common.details')}</Button></TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -57,22 +59,23 @@ export function AttemptsTable({ filter }: { filter: { userId?: number; scenarioI
 }
 
 export function AdminAttemptsPage() {
+  const { t } = useTranslation()
   const scenarios = useLoad(adminApi.scenarios)
   const [scenarioId, setScenarioId] = useState<number | ''>('')
   const [status, setStatus] = useState<SimulationStatus | ''>('')
   return (
     <>
-      <PageHeader title="Simulation attempts" subtitle="Every attempt of every student, with full action history." />
+      <PageHeader title={t('admin.attemptsTitle')} subtitle={t('admin.attemptsSubtitle')} />
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-        <TextField select size="small" label="Scenario" value={scenarioId} sx={{ minWidth: 280 }}
+        <TextField select size="small" label={t('admin.scenario')} value={scenarioId} sx={{ minWidth: 280 }}
           onChange={(e) => setScenarioId(e.target.value === '' ? '' : Number(e.target.value))}>
-          <MenuItem value="">All scenarios</MenuItem>
+          <MenuItem value="">{t('admin.allScenarios')}</MenuItem>
           {scenarios.data?.map((s) => <MenuItem key={s.id} value={s.id}>{s.title}</MenuItem>)}
         </TextField>
-        <TextField select size="small" label="Status" value={status} sx={{ minWidth: 180 }}
+        <TextField select size="small" label={t('admin.status')} value={status} sx={{ minWidth: 180 }}
           onChange={(e) => setStatus(e.target.value as SimulationStatus | '')}>
-          <MenuItem value="">All</MenuItem>
-          {STATUSES.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+          <MenuItem value="">{t('common.all')}</MenuItem>
+          {STATUSES.map((s) => <MenuItem key={s} value={s}>{t(`enums.status.${s}`)}</MenuItem>)}
         </TextField>
       </Stack>
       <AttemptsTable filter={{ scenarioId: scenarioId || undefined, status: status || undefined }} />
@@ -81,6 +84,7 @@ export function AdminAttemptsPage() {
 }
 
 export function AdminAttemptDetailPage() {
+  const { t } = useTranslation()
   const { id } = useParams()
   const detail = useLoad(() => adminApi.attempt(Number(id)), [id])
   if (detail.loading) return <Loading />
@@ -89,11 +93,11 @@ export function AdminAttemptDetailPage() {
 
   return (
     <>
-      <PageHeader title={`Attempt #${attempt.id} — ${attempt.scenarioTitle}`}
-        subtitle={`${attempt.userName} (${attempt.userEmail}) · started ${new Date(attempt.createdAt).toLocaleString()}`}
+      <PageHeader title={t('admin.attemptTitle', { id: attempt.id, title: attempt.scenarioTitle })}
+        subtitle={t('admin.attemptSubtitle', { name: attempt.userName, email: attempt.userEmail, date: new Date(attempt.createdAt).toLocaleString() })}
         actions={<StatusChip status={attempt.status} />} />
       {result ? <ResultView result={result} /> : (
-        <Typography color="text.secondary" sx={{ mb: 2 }}>Not completed yet — showing the current state.</Typography>
+        <Typography color="text.secondary" sx={{ mb: 2 }}>{t('admin.notCompleted')}</Typography>
       )}
       <Grid container spacing={2} sx={{ my: 2 }}>
         <Grid size={{ xs: 12, md: 4 }}><ResourcesPanel resources={simulation.resources} /></Grid>
@@ -101,10 +105,10 @@ export function AdminAttemptDetailPage() {
       </Grid>
       <Box sx={{ mb: 2 }}><TimelinePanel events={simulation.events} /></Box>
       <Paper sx={{ p: 2 }}>
-        <Typography variant="h6" gutterBottom>AI interactions</Typography>
+        <Typography variant="h6" gutterBottom>{t('admin.aiInteractions')}</Typography>
         <Table size="small">
           <TableHead>
-            <TableRow><TableCell>Time</TableCell><TableCell>Type</TableCell><TableCell>Provider</TableCell><TableCell>Status</TableCell><TableCell>Request</TableCell><TableCell>Response</TableCell><TableCell align="right">Latency</TableCell></TableRow>
+            <TableRow><TableCell>{t('admin.time')}</TableCell><TableCell>{t('admin.type')}</TableCell><TableCell>{t('admin.provider')}</TableCell><TableCell>{t('admin.status')}</TableCell><TableCell>{t('admin.request')}</TableCell><TableCell>{t('admin.response')}</TableCell><TableCell align="right">{t('admin.latency')}</TableCell></TableRow>
           </TableHead>
           <TableBody>
             {aiInteractions.map((i) => (
@@ -120,7 +124,7 @@ export function AdminAttemptDetailPage() {
                 <TableCell align="right">{i.latencyMs} ms</TableCell>
               </TableRow>
             ))}
-            {aiInteractions.length === 0 && <TableRow><TableCell colSpan={7}>No AI usage in this attempt.</TableCell></TableRow>}
+            {aiInteractions.length === 0 && <TableRow><TableCell colSpan={7}>{t('admin.noAiUsage')}</TableCell></TableRow>}
           </TableBody>
         </Table>
       </Paper>

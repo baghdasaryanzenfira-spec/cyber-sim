@@ -52,7 +52,7 @@ JSON parsing), hard timeout, fallback, audit log, validated scenario variations 
 
 **2.8 Frontend** — structure, typed API layer, route guards, the active simulation page (07, 16 Steps 8–10).
 
-**2.9 Testing and deployment** — test strategy and inventory (74 backend tests), Docker setup (11, 12; Fig. 3).
+**2.9 Testing and deployment** — test strategy and inventory (81 backend tests), Docker setup (11, 12; Fig. 3).
 
 **Implementation problems worth discussing** (from 16):
 - Hibernate insert-before-delete ordering when replacing children with unique keys.
@@ -78,7 +78,7 @@ progressive disclosure, 4 hints (`backend/src/main/resources/scenarios`).
 
 | Aspect | Result |
 |--------|--------|
-| Automated tests | 74 backend tests (unit, Mockito, MockMvc + Testcontainers) — all passing |
+| Automated tests | 81 backend tests (unit, Mockito, MockMvc + Testcontainers) — all passing |
 | Determinism | Scripted run scored exactly the hand-calculated value (58/100: 10+15+15+20+10−10−2) |
 | Security | Students receive 403 on the admin API; other students' simulations return 404; tampered JWT → 401 |
 | AI reliability | Provider exception, timeout, invalid JSON and solution-leaking hints all fall back to a valid answer (tested) |

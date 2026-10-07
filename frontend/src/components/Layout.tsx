@@ -12,8 +12,10 @@ import {
   ListSubheader, Toolbar, Tooltip, Typography,
 } from '@mui/material'
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { NavLink, Outlet, useNavigate } from 'react-router'
 import { useAuth } from '../auth/AuthContext'
+import { LanguageSwitcher } from './LanguageSwitcher'
 
 const DRAWER_WIDTH = 236
 
@@ -24,18 +26,18 @@ interface NavItem {
   end?: boolean
 }
 
-const studentNav: NavItem[] = [
-  { to: '/', label: 'Dashboard', icon: <DashboardIcon />, end: true },
-  { to: '/scenarios', label: 'Scenarios', icon: <TravelExploreIcon /> },
-  { to: '/history', label: 'Progress & history', icon: <HistoryIcon /> },
+const studentNav = (t: (key: string) => string): NavItem[] => [
+  { to: '/', label: t('nav.dashboard'), icon: <DashboardIcon />, end: true },
+  { to: '/scenarios', label: t('nav.scenarios'), icon: <TravelExploreIcon /> },
+  { to: '/history', label: t('nav.history'), icon: <HistoryIcon /> },
 ]
 
-const adminNav: NavItem[] = [
-  { to: '/admin', label: 'Admin dashboard', icon: <AdminPanelSettingsIcon />, end: true },
-  { to: '/admin/users', label: 'Users', icon: <GroupIcon /> },
-  { to: '/admin/scenarios', label: 'Scenarios', icon: <ListAltIcon /> },
-  { to: '/admin/attempts', label: 'Attempts', icon: <ShieldIcon /> },
-  { to: '/admin/analytics', label: 'Analytics', icon: <AssessmentIcon /> },
+const adminNav = (t: (key: string) => string): NavItem[] => [
+  { to: '/admin', label: t('nav.adminDashboard'), icon: <AdminPanelSettingsIcon />, end: true },
+  { to: '/admin/users', label: t('nav.users'), icon: <GroupIcon /> },
+  { to: '/admin/scenarios', label: t('nav.scenarios'), icon: <ListAltIcon /> },
+  { to: '/admin/attempts', label: t('nav.attempts'), icon: <ShieldIcon /> },
+  { to: '/admin/analytics', label: t('nav.analytics'), icon: <AssessmentIcon /> },
 ]
 
 function NavList({ items }: { items: NavItem[] }) {
@@ -55,6 +57,7 @@ function NavList({ items }: { items: NavItem[] }) {
 export function Layout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const { t } = useTranslation()
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
@@ -63,9 +66,10 @@ export function Layout() {
           <ShieldIcon color="primary" sx={{ mr: 1 }} />
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
             CyberSim <Typography component="span" color="text.secondary" sx={{ fontSize: 14, ml: 1 }}>
-              Cloud Incident Response Training
+              {t('common.tagline')}
             </Typography>
           </Typography>
+          <LanguageSwitcher sx={{ mr: 2 }} />
           {user && (
             <>
               <Chip size="small" label={user.role} color={user.role === 'ADMIN' ? 'secondary' : 'primary'}
@@ -74,7 +78,7 @@ export function Layout() {
                 {user.displayName.charAt(0).toUpperCase()}
               </Avatar>
               <Typography sx={{ mr: 1 }}>{user.displayName}</Typography>
-              <Tooltip title="Log out">
+              <Tooltip title={t('common.logout')}>
                 <IconButton color="inherit" onClick={() => { logout(); navigate('/login') }}>
                   <LogoutIcon />
                 </IconButton>
@@ -88,14 +92,14 @@ export function Layout() {
         '& .MuiDrawer-paper': { width: DRAWER_WIDTH, boxSizing: 'border-box', bgcolor: '#0d1424' },
       }}>
         <Toolbar />
-        <List subheader={<ListSubheader sx={{ bgcolor: 'transparent' }}>Training</ListSubheader>}>
-          <NavList items={studentNav} />
+        <List subheader={<ListSubheader sx={{ bgcolor: 'transparent' }}>{t('nav.training')}</ListSubheader>}>
+          <NavList items={studentNav(t)} />
         </List>
         {user?.role === 'ADMIN' && (
           <>
             <Divider sx={{ my: 1 }} />
-            <List subheader={<ListSubheader sx={{ bgcolor: 'transparent' }}>Administration</ListSubheader>}>
-              <NavList items={adminNav} />
+            <List subheader={<ListSubheader sx={{ bgcolor: 'transparent' }}>{t('nav.administration')}</ListSubheader>}>
+              <NavList items={adminNav(t)} />
             </List>
           </>
         )}

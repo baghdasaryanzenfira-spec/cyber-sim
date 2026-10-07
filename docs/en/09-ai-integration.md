@@ -2,7 +2,7 @@
 
 ## 1. Role of AI in the platform
 
-AI is not a chatbot bolted onto the page. It has four concrete jobs, each fed with structured
+AI is not a chatbot bolted onto the page. It has five concrete jobs, each fed with structured
 simulation context:
 
 | Capability | Trigger | Input context | Output | Affects state? |
@@ -12,6 +12,35 @@ simulation context:
 | B. Post-simulation analysis | Simulation completed | scenario, expected actions, performed actions with order/points, missed actions, score | Structured feedback: summary, strengths, improvements, missed evidence, order issues, unnecessary actions | Stored as feedback text only; **score is computed by the deterministic scoring engine, not by AI** |
 | C. Scenario variation | Admin clicks *Generate variation* | Existing scenario definition | New `ScenarioDefinition` JSON | Saved only after validation, as an **inactive draft** |
 | D. Learning recommendations | Student opens progress page | per-category results, missed action categories | List of recommended topics with reasons | No |
+| E. On-demand translation | Any user clicks *Translate* next to a piece of content | That text only | The same text in Armenian | No — the result is shown beside the original and never stored (ADR-12) |
+
+### ADR-12 — On-demand translation of content, nothing stored
+
+- **What:** every piece of *content* text — scenario briefing, learning objectives, action descriptions, log and
+  alert messages, AI hints and feedback, learning recommendations — carries a small *Translate* link.
+  `POST /api/ai/translate` takes that one string and returns it in Armenian. The result appears under the original
+  and disappears when dismissed.
+- **Why not store translations:** the English text stays the single source of truth. A scenario authored later
+  needs no translation step, an edited scenario can never have a stale translation, and there is no extra column,
+  no migration of content and no second copy to keep in sync. The cost is one API call per request instead of one
+  per scenario — acceptable because a reader translates a handful of items, not a whole catalogue.
+- **Why on demand resolves the authenticity problem:** telemetry stays exactly as a cloud platform emitted it, so
+  a student reads `Policy check FAILED: bucket acme-customer-exports allows public read` the way they would in a
+  real console. A student who cannot read it asks for a translation; the training material itself is not weakened
+  for everyone else. Pre-translating the telemetry would have forced a choice between authenticity and
+  accessibility — this gets both.
+- **Scope:** UI chrome is translated statically (ADR-11); content is translated on request. The prompt instructs
+  the model to keep identifiers, IP addresses, commands, service names and log-level words in English inside the
+  translated sentence, because those are the words that make a log line recognisable.
+- **Safety:** the text to translate is treated as data, not instructions (same delimiting rule as the assistant
+  question prompt), input is capped at 4 000 characters, and output that is implausibly long for its source is
+  rejected as an explanation rather than a translation. Every call is logged in `ai_interactions` as `TRANSLATION`.
+- **Offline provider:** the mock tutor cannot translate, so it echoes the source and the UI says why — a real
+  translation needs `AI_PROVIDER=claude`.
+- **Alternatives rejected:** storing a translation per scenario in a `translations` column (built first, then
+  removed — it split the content into two copies to maintain, needed an admin review workflow, and still left
+  newly authored scenarios untranslated); a separate scenario row per language (also splits attempts and
+  analytics).
 
 ## 2. Provider abstraction
 
@@ -29,24 +58,41 @@ classDiagram
   class MockAiProvider {
     rule-based, deterministic
   }
-  class AiAssistantService {
-    +hint(simulation)
-    +ask(simulation, question)
-    +feedback(simulation, score)
-    +recommendations(user)
-    +variation(scenario)
+  class AiGateway {
+    +execute(payload, context, validator) AiResult
+  }
+  class TutorService {
+    +hint(snapshot, hintNumber)
+    +ask(snapshot, question)
+    +feedback(snapshot, score)
+    +recommendations(userId, stats)
+  }
+  class ScenarioVariationService {
+    +generate(adminId, scenarioId)
+  }
+  class TranslationService {
+    +translate(userId, text, language)
   }
   class AiPromptBuilder
   class AiOutputValidator
-  class AiInteractionLogger
+  class AiInteractionRepository
   AiProvider <|.. ClaudeAiProvider
   AiProvider <|.. MockAiProvider
-  AiAssistantService --> AiProvider : primary
-  AiAssistantService --> MockAiProvider : fallback
-  AiAssistantService --> AiPromptBuilder
-  AiAssistantService --> AiOutputValidator
-  AiAssistantService --> AiInteractionLogger
+  AiGateway --> AiProvider : primary
+  AiGateway --> MockAiProvider : fallback
+  AiGateway --> AiPromptBuilder
+  AiGateway --> AiInteractionRepository : log
+  TutorService --> AiGateway
+  TutorService --> AiOutputValidator
+  ScenarioVariationService --> AiGateway
+  ScenarioVariationService --> AiOutputValidator
+  TranslationService --> AiGateway
+  TranslationService --> AiOutputValidator
 ```
+
+`SimulationAssistantService` (simulation module) sits in front of `TutorService` for student hint/question
+requests: it checks ownership and simulation state, builds the `SimulationSnapshot`, and applies the hint
+counter in a separate transaction after a hint is delivered.
 
 ### ADR-8 — `AiProvider` interface with Claude and mock implementations
 - **What:** A single small interface: `AiResponse complete(AiRequest request)` where the request carries
@@ -84,7 +130,7 @@ Deterministic, rule-based answers built from the scenario data:
 ```mermaid
 sequenceDiagram
   participant UI
-  participant S as AiAssistantService
+  participant S as SimulationAssistantService / TutorService / AiGateway
   participant V as Input validation
   participant P as AiPromptBuilder
   participant AI as AiProvider (Claude)
@@ -114,7 +160,7 @@ sequenceDiagram
 | Input validation | Bean Validation on question DTO (`@NotBlank`, `@Size(max=500)`); control characters removed; the question is placed in a delimited `<student_question>` block and the system prompt states that its content is data, not instructions. |
 | Output validation | Length limits; JSON parsing + schema checks for feedback and variations; hint check rejects answers that list the exact labels of more than one remaining expected action (solution leak) → fallback. |
 | Timeouts | SDK client timeout (`AI_TIMEOUT_SECONDS`) and small retry count. |
-| Error handling | Any exception from the provider is caught in `AiAssistantService`; the student never sees a 500 because of AI. |
+| Error handling | Any exception from the provider is caught in `AiGateway`; the student never sees a 500 because of AI. |
 | Fallback behaviour | Mock provider answer, marked `FALLBACK` in the response and the log. |
 | Logging | `ai_interactions` table + application log lines with type, provider, status, latency — no API keys, no full prompts. |
 | Configurable provider | `AI_PROVIDER`, `AI_MODEL`, `AI_EFFORT`, `AI_TIMEOUT_SECONDS`, `ANTHROPIC_API_KEY`. |

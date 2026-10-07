@@ -6,12 +6,14 @@ import {
   Snackbar, Stack, Typography,
 } from '@mui/material'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
 import { errorMessage } from '../../api/client'
 import { simulationApi } from '../../api/endpoints'
 import type { ActionOption, EventView } from '../../api/types'
 import { CategoryChip, DifficultyChip, StatusChip } from '../../components/Chips'
 import { ErrorAlert, Loading } from '../../components/Feedback'
+import { TranslateButton } from '../../components/TranslateButton'
 import { useLoad } from '../../hooks/useLoad'
 import { ActionsPanel } from './ActionsPanel'
 import { AssistantPanel } from './AssistantPanel'
@@ -37,6 +39,7 @@ function useElapsed(startedAt?: string, completedAt?: string) {
  * scenario header / resources | logs & alerts | AI assistant / available actions / incident timeline.
  */
 export function ActiveSimulationPage() {
+  const { t } = useTranslation()
   const { id } = useParams()
   const simulationId = Number(id)
   const navigate = useNavigate()
@@ -72,7 +75,7 @@ export function ActiveSimulationPage() {
     try {
       const result = await simulationApi.act(simulationId, action.key, note || undefined)
       setSim(result.simulation)
-      setToast(result.action.resultMessage + (result.revealedEvents > 0 ? `  (+${result.revealedEvents} new log entries)` : ''))
+      setToast(result.action.resultMessage + (result.revealedEvents > 0 ? `  ${t('sim.newLogEntries', { count: result.revealedEvents })}` : ''))
     } catch (e) {
       setActionError(errorMessage(e))
     }
@@ -112,7 +115,7 @@ export function ActiveSimulationPage() {
       <Paper sx={{ p: 2, mb: 2, background: 'linear-gradient(90deg, rgba(34,211,238,0.08), rgba(17,24,39,1) 60%)' }}>
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}>
           <Box>
-            <Typography variant="overline" color="text.secondary">Incident</Typography>
+            <Typography variant="overline" color="text.secondary">{t('sim.incident')}</Typography>
             <Typography variant="h5">{sim.scenario.title}</Typography>
             <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
               <StatusChip status={sim.status} />
@@ -124,12 +127,12 @@ export function ActiveSimulationPage() {
             <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', color: 'text.secondary' }}>
               <TimerIcon fontSize="small" /><Typography sx={{ fontVariantNumeric: 'tabular-nums' }}>{elapsed}</Typography>
             </Stack>
-            <Typography color="text.secondary">{sim.performedActions.length} actions</Typography>
+            <Typography color="text.secondary">{t('sim.actionsCount', { count: sim.performedActions.length })}</Typography>
             {active && (
               <>
-                <Button color="inherit" onClick={abandon}>Abandon</Button>
+                <Button color="inherit" onClick={abandon}>{t('sim.abandon')}</Button>
                 <Button variant="contained" color="success" startIcon={<FlagCircleIcon />} onClick={() => setConfirmFinish(true)}>
-                  Finish &amp; get score
+                  {t('sim.finish')}
                 </Button>
               </>
             )}
@@ -141,17 +144,20 @@ export function ActiveSimulationPage() {
 
       {sim.status === 'CREATED' && (
         <Paper sx={{ p: 4, textAlign: 'center' }}>
-          <Typography variant="h6" gutterBottom>Briefing</Typography>
-          <Typography color="text.secondary" sx={{ maxWidth: 760, mx: 'auto', whiteSpace: 'pre-line', mb: 3 }}>
+          <Typography variant="h6" gutterBottom>{t('sim.briefing')}</Typography>
+          <Typography color="text.secondary" sx={{ maxWidth: 760, mx: 'auto', whiteSpace: 'pre-line', mb: 1 }}>
             {sim.scenario.description}
           </Typography>
+          <Box sx={{ maxWidth: 760, mx: 'auto', mb: 3 }}>
+            <TranslateButton text={sim.scenario.description} />
+          </Box>
           <Button variant="contained" size="large" startIcon={<PlayArrowIcon />} onClick={begin} disabled={busy}>
-            Begin incident response
+            {t('sim.begin')}
           </Button>
         </Paper>
       )}
 
-      {sim.status === 'ABANDONED' && <Alert severity="info">This simulation was abandoned.</Alert>}
+      {sim.status === 'ABANDONED' && <Alert severity="info">{t('sim.abandoned')}</Alert>}
 
       {sim.status !== 'CREATED' && (
         <>
@@ -179,16 +185,16 @@ export function ActiveSimulationPage() {
       </Snackbar>
 
       <Dialog open={confirmFinish} onClose={() => !busy && setConfirmFinish(false)}>
-        <DialogTitle>Finish the simulation?</DialogTitle>
+        <DialogTitle>{t('sim.finishTitle')}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Your actions will be scored and the AI tutor will analyse your response. You cannot perform further actions afterwards.
+            {t('sim.finishText')}
           </DialogContentText>
           {busy && <LinearProgress sx={{ mt: 2 }} />}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmFinish(false)} disabled={busy}>Continue investigating</Button>
-          <Button variant="contained" color="success" onClick={finish} disabled={busy}>Finish</Button>
+          <Button onClick={() => setConfirmFinish(false)} disabled={busy}>{t('sim.continueInvestigating')}</Button>
+          <Button variant="contained" color="success" onClick={finish} disabled={busy}>{t('sim.finishConfirm')}</Button>
         </DialogActions>
       </Dialog>
     </>

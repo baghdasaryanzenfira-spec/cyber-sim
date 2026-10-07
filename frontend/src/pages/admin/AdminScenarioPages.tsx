@@ -7,7 +7,9 @@ import {
   Alert, Box, Button, Chip, Grid, IconButton, MenuItem, Paper, Snackbar, Switch, Tab, Table, TableBody, TableCell,
   TableHead, TableRow, Tabs, TextField, Tooltip, Typography,
 } from '@mui/material'
+import type { TFunction } from 'i18next'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link as RouterLink, useNavigate, useParams } from 'react-router'
 import { apiErrorBody, errorMessage } from '../../api/client'
 import { adminApi } from '../../api/endpoints'
@@ -21,6 +23,7 @@ import { RowEditor, type FieldSpec } from './RowEditor'
 // ------------------------------------------------------------------ list
 
 export function AdminScenariosPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const scenarios = useLoad(adminApi.scenarios)
   const [error, setError] = useState<string | null>(null)
@@ -41,7 +44,7 @@ export function AdminScenariosPage() {
     setError(null)
     try {
       const result = await adminApi.generateVariation(id)
-      setToast(`Variation "${result.scenario.definition.slug}" created as inactive draft (source: ${result.source}).`)
+      setToast(t('editor.variationCreated', { slug: result.scenario.definition.slug, source: result.source }))
       await scenarios.reload()
     } catch (e) {
       setError(errorMessage(e))
@@ -53,15 +56,15 @@ export function AdminScenariosPage() {
   if (scenarios.loading && !scenarios.data) return <Loading />
   return (
     <>
-      <PageHeader title="Scenario management" subtitle="Create, edit, activate and vary training scenarios."
-        actions={<Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/admin/scenarios/new')}>New scenario</Button>} />
+      <PageHeader title={t('editor.scenariosTitle')} subtitle={t('editor.scenariosSubtitle')}
+        actions={<Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/admin/scenarios/new')}>{t('editor.newScenario')}</Button>} />
       <ErrorAlert message={error ?? scenarios.error} />
       <Paper>
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Title</TableCell><TableCell>Difficulty</TableCell><TableCell>Category</TableCell><TableCell>Version</TableCell>
-              <TableCell>Actions</TableCell><TableCell>Events</TableCell><TableCell>Attempts</TableCell><TableCell>Active</TableCell><TableCell />
+              <TableCell>{t('editor.titleCol')}</TableCell><TableCell>{t('editor.difficulty')}</TableCell><TableCell>{t('editor.category')}</TableCell><TableCell>{t('editor.version')}</TableCell>
+              <TableCell>{t('editor.actions')}</TableCell><TableCell>{t('editor.events')}</TableCell><TableCell>{t('editor.attempts')}</TableCell><TableCell>{t('editor.active')}</TableCell><TableCell />
             </TableRow>
           </TableHead>
           <TableBody>
@@ -70,7 +73,7 @@ export function AdminScenariosPage() {
                 <TableCell>
                   {s.title}
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                    {s.slug}{s.sourceScenarioId ? ` · AI variation of #${s.sourceScenarioId}` : ''}
+                    {s.slug}{s.sourceScenarioId ? ` · ${t('editor.variationOf', { id: s.sourceScenarioId })}` : ''}
                   </Typography>
                 </TableCell>
                 <TableCell><DifficultyChip difficulty={s.difficulty} /></TableCell>
@@ -81,7 +84,7 @@ export function AdminScenariosPage() {
                 <TableCell>{s.attemptCount}</TableCell>
                 <TableCell><Switch checked={s.active} onChange={(e) => toggle(s.id, e.target.checked)} /></TableCell>
                 <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
-                  <Tooltip title="Generate a validated AI variation (inactive draft)">
+                  <Tooltip title={t('editor.generateVariation')}>
                     <span>
                       <IconButton color="secondary" disabled={busyId != null} onClick={() => vary(s.id)}><AutoAwesomeIcon /></IconButton>
                     </span>
@@ -112,52 +115,55 @@ const EMPTY: ScenarioDefinition = {
   active: false, learningObjectives: [''], resources: [], events: [], actions: [], hints: [],
 }
 
-const resourceFields: FieldSpec[] = [
-  { name: 'key', label: 'Key', type: 'text', help: 'lower-case, e.g. vm-web-01' },
-  { name: 'type', label: 'Type', type: 'select', options: RESOURCE_TYPES },
-  { name: 'name', label: 'Name', type: 'text' },
-  { name: 'region', label: 'Region', type: 'text' },
-  { name: 'status', label: 'Initial status', type: 'text', help: 'e.g. RUNNING, ACTIVE, PUBLIC' },
-  { name: 'properties', label: 'Properties (JSON)', type: 'json' },
-]
-
-function eventFields(def: ScenarioDefinition): FieldSpec[] {
+function resourceFields(t: TFunction): FieldSpec[] {
   return [
-    { name: 'key', label: 'Key', type: 'text', width: 4 },
-    { name: 'offsetSeconds', label: 'Offset (seconds after incident start)', type: 'number', width: 4 },
-    { name: 'type', label: 'Type', type: 'select', options: ['LOG', 'ALERT'], width: 4 },
-    { name: 'source', label: 'Source (log name)', type: 'text', width: 4 },
-    { name: 'severity', label: 'Severity', type: 'select', options: ['INFO', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], width: 4 },
-    { name: 'resourceKey', label: 'Resource', type: 'select', optional: true, options: def.resources.map((r) => r.key), width: 4 },
-    { name: 'message', label: 'Log message', type: 'multiline' },
-    { name: 'details', label: 'Details (JSON)', type: 'json' },
-    { name: 'evidence', label: 'This entry is evidence', type: 'bool', width: 4 },
-    { name: 'revealedByActionKey', label: 'Revealed by investigation action', type: 'select', optional: true,
-      options: def.actions.filter((a) => a.phase === 'INVESTIGATION').map((a) => a.key), help: 'empty = visible from the start', width: 8 },
-    { name: 'evidenceNote', label: 'Why it is evidence (used in feedback)', type: 'multiline', optional: true },
+    { name: 'key', label: t('editor.fKey'), type: 'text', help: t('editor.fKeyHelp') },
+    { name: 'type', label: t('editor.fType'), type: 'select', options: RESOURCE_TYPES },
+    { name: 'name', label: t('editor.fName'), type: 'text' },
+    { name: 'region', label: t('editor.fRegion'), type: 'text' },
+    { name: 'status', label: t('editor.fInitialStatus'), type: 'text', help: t('editor.fInitialStatusHelp') },
+    { name: 'properties', label: t('editor.fProperties'), type: 'json' },
   ]
 }
 
-function actionFields(def: ScenarioDefinition): FieldSpec[] {
+function eventFields(def: ScenarioDefinition, t: TFunction): FieldSpec[] {
   return [
-    { name: 'key', label: 'Key', type: 'text', width: 4 },
-    { name: 'label', label: 'Label', type: 'text', width: 8 },
-    { name: 'description', label: 'Description', type: 'multiline' },
-    { name: 'phase', label: 'Phase', type: 'select', options: ['INVESTIGATION', 'RESPONSE'], width: 4 },
-    { name: 'category', label: 'Category', type: 'select', options: ['INSPECT', 'IDENTIFY', 'CONTAIN', 'ERADICATE', 'RECOVER', 'HARDEN'], width: 4 },
-    { name: 'targetResourceKey', label: 'Target resource', type: 'select', optional: true, options: def.resources.map((r) => r.key), width: 4 },
-    { name: 'outcome', label: 'Outcome (scoring)', type: 'select', options: ['EXPECTED', 'NEUTRAL', 'HARMFUL'], width: 4 },
-    { name: 'points', label: 'Points', type: 'number', width: 4, help: '>0 expected, 0 neutral, <0 harmful' },
-    { name: 'prerequisiteActionKey', label: 'Should come after', type: 'select', optional: true, options: def.actions.map((a) => a.key), width: 4 },
-    { name: 'effectStatus', label: 'New status of target resource', type: 'text', optional: true, width: 6 },
-    { name: 'resultMessage', label: 'Simulated console output', type: 'multiline' },
-    { name: 'explanation', label: 'Explanation (shown in feedback)', type: 'multiline' },
+    { name: 'key', label: t('editor.fKey'), type: 'text', width: 4 },
+    { name: 'offsetSeconds', label: t('editor.fOffsetSeconds'), type: 'number', width: 4 },
+    { name: 'type', label: t('editor.fType'), type: 'select', options: ['LOG', 'ALERT'], width: 4 },
+    { name: 'source', label: t('editor.fSource'), type: 'text', width: 4 },
+    { name: 'severity', label: t('editor.fSeverity'), type: 'select', options: ['INFO', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], width: 4 },
+    { name: 'resourceKey', label: t('editor.fResource'), type: 'select', optional: true, options: def.resources.map((r) => r.key), width: 4 },
+    { name: 'message', label: t('editor.fLogMessage'), type: 'multiline' },
+    { name: 'details', label: t('editor.fDetails'), type: 'json' },
+    { name: 'evidence', label: t('editor.fIsEvidence'), type: 'bool', width: 4 },
+    { name: 'revealedByActionKey', label: t('editor.fRevealedBy'), type: 'select', optional: true,
+      options: def.actions.filter((a) => a.phase === 'INVESTIGATION').map((a) => a.key), help: t('editor.fRevealedByHelp'), width: 8 },
+    { name: 'evidenceNote', label: t('editor.fEvidenceNote'), type: 'multiline', optional: true },
+  ]
+}
+
+function actionFields(def: ScenarioDefinition, t: TFunction): FieldSpec[] {
+  return [
+    { name: 'key', label: t('editor.fKey'), type: 'text', width: 4 },
+    { name: 'label', label: t('editor.fLabel'), type: 'text', width: 8 },
+    { name: 'description', label: t('editor.fDescription'), type: 'multiline' },
+    { name: 'phase', label: t('editor.fPhase'), type: 'select', options: ['INVESTIGATION', 'RESPONSE'], width: 4 },
+    { name: 'category', label: t('editor.fCategory'), type: 'select', options: ['INSPECT', 'IDENTIFY', 'CONTAIN', 'ERADICATE', 'RECOVER', 'HARDEN'], width: 4 },
+    { name: 'targetResourceKey', label: t('editor.fTargetResource'), type: 'select', optional: true, options: def.resources.map((r) => r.key), width: 4 },
+    { name: 'outcome', label: t('editor.fOutcome'), type: 'select', options: ['EXPECTED', 'NEUTRAL', 'HARMFUL'], width: 4 },
+    { name: 'points', label: t('editor.fPoints'), type: 'number', width: 4, help: t('editor.fPointsHelp') },
+    { name: 'prerequisiteActionKey', label: t('editor.fPrerequisite'), type: 'select', optional: true, options: def.actions.map((a) => a.key), width: 4 },
+    { name: 'effectStatus', label: t('editor.fEffectStatus'), type: 'text', optional: true, width: 6 },
+    { name: 'resultMessage', label: t('editor.fResultMessage'), type: 'multiline' },
+    { name: 'explanation', label: t('editor.fExplanation'), type: 'multiline' },
   ]
 }
 
 type ListName = 'resources' | 'events' | 'actions'
 
 export function ScenarioEditorPage() {
+  const { t } = useTranslation()
   const { id } = useParams()
   const isNew = id === 'new'
   const navigate = useNavigate()
@@ -201,7 +207,7 @@ export function ScenarioEditorPage() {
     }
   }
 
-  const listFields: Record<ListName, FieldSpec[]> = { resources: resourceFields, events: eventFields(def), actions: actionFields(def) }
+  const listFields: Record<ListName, FieldSpec[]> = { resources: resourceFields(t), events: eventFields(def, t), actions: actionFields(def, t) }
   const newRow: Record<ListName, () => Record<string, unknown>> = {
     resources: () => ({ key: '', type: 'VIRTUAL_MACHINE', name: '', region: 'eu-central-1', status: 'RUNNING', properties: {} }),
     events: () => ({ key: '', offsetSeconds: 0, type: 'LOG', source: '', severity: 'INFO', message: '', details: {}, evidence: false }),
@@ -231,11 +237,11 @@ export function ScenarioEditorPage() {
 
   return (
     <>
-      <PageHeader title={isNew ? 'New scenario' : `Edit: ${def.title}`}
-        subtitle={meta ? `Version ${meta.version} · max score ${maxScore}` : `Max score ${maxScore}`}
+      <PageHeader title={isNew ? t('editor.newScenario') : t('editor.editTitle', { title: def.title })}
+        subtitle={meta ? t('editor.versionMax', { version: meta.version, max: maxScore }) : t('editor.maxScore', { max: maxScore })}
         actions={<>
-          <Button component={RouterLink} to="/admin/scenarios">Back</Button>
-          <Button variant="contained" startIcon={<SaveIcon />} onClick={save}>Save</Button>
+          <Button component={RouterLink} to="/admin/scenarios">{t('common.back')}</Button>
+          <Button variant="contained" startIcon={<SaveIcon />} onClick={save}>{t('common.save')}</Button>
         </>} />
       <ErrorAlert message={error} />
       {apiError && (
@@ -248,12 +254,12 @@ export function ScenarioEditorPage() {
       )}
       <Paper sx={{ mb: 2 }}>
         <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable">
-          <Tab label="General" />
-          <Tab label={`Infrastructure (${def.resources.length})`} />
-          <Tab label={`Logs, alerts & evidence (${def.events.length})`} />
-          <Tab label={`Actions & scoring (${def.actions.length})`} />
-          <Tab label={`Hints (${def.hints.length})`} />
-          <Tab label="JSON" />
+          <Tab label={t('editor.tabGeneral')} />
+          <Tab label={t('editor.tabInfrastructure', { count: def.resources.length })} />
+          <Tab label={t('editor.tabEvents', { count: def.events.length })} />
+          <Tab label={t('editor.tabActions', { count: def.actions.length })} />
+          <Tab label={t('editor.tabHints', { count: def.hints.length })} />
+          <Tab label={t('editor.tabJson')} />
         </Tabs>
       </Paper>
 
@@ -261,82 +267,82 @@ export function ScenarioEditorPage() {
         <Paper sx={{ p: 3 }}>
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, md: 4 }}>
-              <TextField fullWidth label="Slug" value={def.slug} disabled={!isNew} onChange={(e) => set('slug', e.target.value)}
-                helperText="Unique id, lower-case letters, digits and dashes" />
+              <TextField fullWidth label={t('editor.slug')} value={def.slug} disabled={!isNew} onChange={(e) => set('slug', e.target.value)}
+                helperText={t('editor.slugHelp')} />
             </Grid>
-            <Grid size={{ xs: 12, md: 8 }}><TextField fullWidth label="Title" value={def.title} onChange={(e) => set('title', e.target.value)} /></Grid>
-            <Grid size={12}><TextField fullWidth label="Summary" value={def.summary} onChange={(e) => set('summary', e.target.value)} /></Grid>
-            <Grid size={12}><TextField fullWidth multiline minRows={4} label="Briefing / description" value={def.description} onChange={(e) => set('description', e.target.value)} /></Grid>
+            <Grid size={{ xs: 12, md: 8 }}><TextField fullWidth label={t('editor.title')} value={def.title} onChange={(e) => set('title', e.target.value)} /></Grid>
+            <Grid size={12}><TextField fullWidth label={t('editor.summary')} value={def.summary} onChange={(e) => set('summary', e.target.value)} /></Grid>
+            <Grid size={12}><TextField fullWidth multiline minRows={4} label={t('editor.description')} value={def.description} onChange={(e) => set('description', e.target.value)} /></Grid>
             <Grid size={{ xs: 6, md: 3 }}>
-              <TextField select fullWidth label="Difficulty" value={def.difficulty} onChange={(e) => set('difficulty', e.target.value as ScenarioDefinition['difficulty'])}>
-                {DIFFICULTIES.map((d) => <MenuItem key={d} value={d}>{d}</MenuItem>)}
+              <TextField select fullWidth label={t('editor.difficulty')} value={def.difficulty} onChange={(e) => set('difficulty', e.target.value as ScenarioDefinition['difficulty'])}>
+                {DIFFICULTIES.map((d) => <MenuItem key={d} value={d}>{t(`enums.difficulty.${d}`)}</MenuItem>)}
               </TextField>
             </Grid>
             <Grid size={{ xs: 6, md: 3 }}>
-              <TextField select fullWidth label="Category" value={def.category} onChange={(e) => set('category', e.target.value as ScenarioDefinition['category'])}>
-                {CATEGORIES.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+              <TextField select fullWidth label={t('editor.category')} value={def.category} onChange={(e) => set('category', e.target.value as ScenarioDefinition['category'])}>
+                {CATEGORIES.map((c) => <MenuItem key={c} value={c}>{t(`enums.category.${c}`)}</MenuItem>)}
               </TextField>
             </Grid>
-            <Grid size={{ xs: 4, md: 2 }}><TextField fullWidth type="number" label="Minutes" value={def.estimatedMinutes} onChange={(e) => set('estimatedMinutes', Number(e.target.value))} /></Grid>
-            <Grid size={{ xs: 4, md: 2 }}><TextField fullWidth type="number" label="Hint penalty" value={def.hintPenalty} onChange={(e) => set('hintPenalty', Number(e.target.value))} /></Grid>
-            <Grid size={{ xs: 4, md: 2 }}><TextField fullWidth type="number" label="Order penalty" value={def.outOfOrderPenalty} onChange={(e) => set('outOfOrderPenalty', Number(e.target.value))} /></Grid>
+            <Grid size={{ xs: 4, md: 2 }}><TextField fullWidth type="number" label={t('editor.minutes')} value={def.estimatedMinutes} onChange={(e) => set('estimatedMinutes', Number(e.target.value))} /></Grid>
+            <Grid size={{ xs: 4, md: 2 }}><TextField fullWidth type="number" label={t('editor.hintPenalty')} value={def.hintPenalty} onChange={(e) => set('hintPenalty', Number(e.target.value))} /></Grid>
+            <Grid size={{ xs: 4, md: 2 }}><TextField fullWidth type="number" label={t('editor.orderPenalty')} value={def.outOfOrderPenalty} onChange={(e) => set('outOfOrderPenalty', Number(e.target.value))} /></Grid>
             <Grid size={12}>
-              <TextField fullWidth multiline minRows={3} label="Learning objectives (one per line)" value={def.learningObjectives.join('\n')}
+              <TextField fullWidth multiline minRows={3} label={t('editor.objectives')} value={def.learningObjectives.join('\n')}
                 onChange={(e) => set('learningObjectives', e.target.value.split('\n'))} />
             </Grid>
-            <Grid size={{ xs: 12, md: 6 }}><TextField fullWidth multiline minRows={5} label="Incident explanation (shown after completion)" value={def.incidentExplanation} onChange={(e) => set('incidentExplanation', e.target.value)} /></Grid>
-            <Grid size={{ xs: 12, md: 6 }}><TextField fullWidth multiline minRows={5} label="Recommended solution" value={def.recommendedSolution} onChange={(e) => set('recommendedSolution', e.target.value)} /></Grid>
-            <Grid size={12}><Box sx={{ display: 'flex', alignItems: 'center' }}><Switch checked={def.active} onChange={(e) => set('active', e.target.checked)} /> Active (visible to students)</Box></Grid>
+            <Grid size={{ xs: 12, md: 6 }}><TextField fullWidth multiline minRows={5} label={t('editor.incidentExplanation')} value={def.incidentExplanation} onChange={(e) => set('incidentExplanation', e.target.value)} /></Grid>
+            <Grid size={{ xs: 12, md: 6 }}><TextField fullWidth multiline minRows={5} label={t('editor.recommendedSolution')} value={def.recommendedSolution} onChange={(e) => set('recommendedSolution', e.target.value)} /></Grid>
+            <Grid size={12}><Box sx={{ display: 'flex', alignItems: 'center' }}><Switch checked={def.active} onChange={(e) => set('active', e.target.checked)} /> {t('editor.activeSwitch')}</Box></Grid>
           </Grid>
         </Paper>
       )}
 
       {tab === 1 && (
         <Paper sx={{ p: 2 }}>
-          <Typography color="text.secondary" sx={{ mb: 1 }}>Initial state of the simulated cloud infrastructure.</Typography>
+          <Typography color="text.secondary" sx={{ mb: 1 }}>{t('editor.infraHint')}</Typography>
           <Table size="small">
-            <TableHead><TableRow><TableCell>Key</TableCell><TableCell>Type</TableCell><TableCell>Name</TableCell><TableCell>Status</TableCell><TableCell /></TableRow></TableHead>
+            <TableHead><TableRow><TableCell>{t('editor.key')}</TableCell><TableCell>{t('editor.type')}</TableCell><TableCell>{t('editor.name')}</TableCell><TableCell>{t('editor.statusCol')}</TableCell><TableCell /></TableRow></TableHead>
             <TableBody>
               {def.resources.map((r: ResourceDef, i) => (
                 <TableRow key={i}><TableCell>{r.key}</TableCell><TableCell>{r.type}</TableCell><TableCell>{r.name}</TableCell><TableCell>{r.status}</TableCell>{rowActions('resources', i)}</TableRow>
               ))}
             </TableBody>
           </Table>
-          {addButton('resources', 'Add resource')}
+          {addButton('resources', t('editor.addResource'))}
         </Paper>
       )}
 
       {tab === 2 && (
         <Paper sx={{ p: 2 }}>
           <Typography color="text.secondary" sx={{ mb: 1 }}>
-            Incident timeline. Mark evidence and choose which investigation action reveals hidden entries.
+            {t('editor.eventsHint')}
           </Typography>
           <Table size="small">
-            <TableHead><TableRow><TableCell>Offset</TableCell><TableCell>Type</TableCell><TableCell>Severity</TableCell><TableCell>Source</TableCell><TableCell>Message</TableCell><TableCell>Evidence</TableCell><TableCell>Revealed by</TableCell><TableCell /></TableRow></TableHead>
+            <TableHead><TableRow><TableCell>{t('editor.offset')}</TableCell><TableCell>{t('editor.type')}</TableCell><TableCell>{t('editor.severity')}</TableCell><TableCell>{t('editor.source')}</TableCell><TableCell>{t('editor.message')}</TableCell><TableCell>{t('editor.evidenceCol')}</TableCell><TableCell>{t('editor.revealedBy')}</TableCell><TableCell /></TableRow></TableHead>
             <TableBody>
               {[...def.events.entries()].sort((a, b) => a[1].offsetSeconds - b[1].offsetSeconds).map(([i, e]: [number, EventDef]) => (
                 <TableRow key={i}>
                   <TableCell>+{e.offsetSeconds}s</TableCell><TableCell>{e.type}</TableCell><TableCell><SeverityChip severity={e.severity} /></TableCell>
                   <TableCell>{e.source}</TableCell>
                   <TableCell sx={{ maxWidth: 380, fontSize: 12 }}>{e.message}</TableCell>
-                  <TableCell>{e.evidence && <Chip size="small" color="success" label="evidence" />}</TableCell>
-                  <TableCell>{e.revealedByActionKey ?? 'start'}</TableCell>
+                  <TableCell>{e.evidence && <Chip size="small" color="success" label={t('editor.evidenceChip')} />}</TableCell>
+                  <TableCell>{e.revealedByActionKey ?? t('editor.start')}</TableCell>
                   {rowActions('events', i)}
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-          {addButton('events', 'Add log entry / alert')}
+          {addButton('events', t('editor.addEvent'))}
         </Paper>
       )}
 
       {tab === 3 && (
         <Paper sx={{ p: 2 }}>
           <Typography color="text.secondary" sx={{ mb: 1 }}>
-            Expected actions and scoring rules. Maximum score = sum of points of EXPECTED actions ({maxScore}).
+            {t('editor.actionsHint', { max: maxScore })}
           </Typography>
           <Table size="small">
-            <TableHead><TableRow><TableCell>Key</TableCell><TableCell>Label</TableCell><TableCell>Phase</TableCell><TableCell>Outcome</TableCell><TableCell align="right">Points</TableCell><TableCell>After</TableCell><TableCell>Effect</TableCell><TableCell /></TableRow></TableHead>
+            <TableHead><TableRow><TableCell>{t('editor.key')}</TableCell><TableCell>{t('editor.label')}</TableCell><TableCell>{t('editor.phase')}</TableCell><TableCell>{t('editor.outcome')}</TableCell><TableCell align="right">{t('editor.points')}</TableCell><TableCell>{t('editor.after')}</TableCell><TableCell>{t('editor.effect')}</TableCell><TableCell /></TableRow></TableHead>
             <TableBody>
               {def.actions.map((a: ActionDef, i) => (
                 <TableRow key={i}>
@@ -350,14 +356,14 @@ export function ScenarioEditorPage() {
               ))}
             </TableBody>
           </Table>
-          {addButton('actions', 'Add action')}
+          {addButton('actions', t('editor.addAction'))}
         </Paper>
       )}
 
       {tab === 4 && (
         <Paper sx={{ p: 3 }}>
-          <TextField fullWidth multiline minRows={6} label="Static hints, from general to specific (one per line)"
-            helperText="Used by the offline tutor and as AI instructor notes"
+          <TextField fullWidth multiline minRows={6} label={t('editor.hintsLabel')}
+            helperText={t('editor.hintsHelp')}
             value={def.hints.join('\n')} onChange={(e) => set('hints', e.target.value.split('\n').filter((h) => h.trim()))} />
         </Paper>
       )}
@@ -367,19 +373,19 @@ export function ScenarioEditorPage() {
           <TextField fullWidth multiline minRows={20} value={jsonText} onChange={(e) => setJsonText(e.target.value)}
             slotProps={{ htmlInput: { style: { fontFamily: 'monospace', fontSize: 12 } } }} />
           <Button sx={{ mt: 1 }} onClick={() => {
-            try { setDef(JSON.parse(jsonText)); setError(null) } catch { setError('The JSON document is not valid') }
-          }}>Apply JSON</Button>
+            try { setDef(JSON.parse(jsonText)); setError(null) } catch { setError(t('editor.invalidJson')) }
+          }}>{t('editor.applyJson')}</Button>
         </Paper>
       )}
 
       {editing && (
-        <RowEditor open title={editing.index < rows(editing.list).length ? 'Edit' : 'Add'}
+        <RowEditor open title={editing.index < rows(editing.list).length ? t('editor.edit') : t('editor.add')}
           fields={listFields[editing.list]}
           value={editing.value}
           onClose={() => setEditing(null)} onSave={saveRow} />
       )}
       <Snackbar open={saved} autoHideDuration={3000} onClose={() => setSaved(false)}>
-        <Alert severity="success" variant="filled">Scenario saved and validated.</Alert>
+        <Alert severity="success" variant="filled">{t('editor.saved')}</Alert>
       </Snackbar>
     </>
   )

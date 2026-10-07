@@ -2,6 +2,7 @@ import {
   Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Grid, MenuItem, TextField,
 } from '@mui/material'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export type FieldType = 'text' | 'multiline' | 'number' | 'select' | 'bool' | 'json'
 
@@ -29,6 +30,7 @@ export function RowEditor({ open, title, fields, value, onClose, onSave }: {
   onClose: () => void
   onSave: (row: Row) => void
 }) {
+  const { t } = useTranslation()
   const [draft, setDraft] = useState<Row>({})
   const [jsonText, setJsonText] = useState<Record<string, string>>({})
   const [jsonError, setJsonError] = useState<string | null>(null)
@@ -52,7 +54,7 @@ export function RowEditor({ open, title, fields, value, onClose, onSave }: {
         try {
           row[f.name] = JSON.parse(jsonText[f.name] || '{}')
         } catch {
-          setJsonError(`${f.label} is not valid JSON`)
+          setJsonError(t('editor.notValidJson', { label: f.label }))
           return
         }
       }
@@ -79,7 +81,7 @@ export function RowEditor({ open, title, fields, value, onClose, onSave }: {
               ) : f.type === 'select' ? (
                 <TextField select fullWidth label={f.label} value={(draft[f.name] as string | null) ?? ''} helperText={f.help}
                   onChange={(e) => set(f.name, e.target.value)}>
-                  {f.optional && <MenuItem value=""><em>none</em></MenuItem>}
+                  {f.optional && <MenuItem value=""><em>{t('common.none')}</em></MenuItem>}
                   {(f.options ?? []).map((o) => <MenuItem key={o} value={o}>{o}</MenuItem>)}
                 </TextField>
               ) : (
@@ -93,8 +95,8 @@ export function RowEditor({ open, title, fields, value, onClose, onSave }: {
         </Grid>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" onClick={save}>Apply</Button>
+        <Button onClick={onClose}>{t('common.cancel')}</Button>
+        <Button variant="contained" onClick={save}>{t('common.apply')}</Button>
       </DialogActions>
     </Dialog>
   )

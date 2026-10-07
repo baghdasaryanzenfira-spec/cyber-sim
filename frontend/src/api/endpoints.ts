@@ -63,6 +63,12 @@ export const progressApi = {
     data(http.get<{ recommendations: Recommendation[]; source: AiSource }>('/progress/me/recommendations')),
 }
 
+export const aiApi = {
+  /** Translate one piece of displayed text. Nothing is stored server-side. */
+  translate: (text: string, language: string) =>
+    data(http.post<{ text: string; source: AiSource }>('/ai/translate', { text, language })),
+}
+
 export const adminApi = {
   users: () => data(http.get<AdminUserRow[]>('/admin/users')),
   user: (id: number) => data(http.get<{ user: User; progress: ProgressView }>(`/admin/users/${id}`)),

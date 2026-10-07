@@ -3,9 +3,11 @@ import LightbulbIcon from '@mui/icons-material/Lightbulb'
 import SendIcon from '@mui/icons-material/Send'
 import { Alert, Box, Button, Chip, CircularProgress, IconButton, Paper, Stack, TextField, Typography } from '@mui/material'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { errorMessage } from '../../api/client'
 import { simulationApi } from '../../api/endpoints'
 import type { AiSource } from '../../api/types'
+import { TranslateButton } from '../../components/TranslateButton'
 
 interface ChatEntry {
   id: string
@@ -15,8 +17,6 @@ interface ChatEntry {
   source: AiSource
 }
 
-const sourceLabel: Record<AiSource, string> = { AI: 'Claude', MOCK: 'Offline tutor', FALLBACK: 'Fallback tutor' }
-
 /** AI assistant: contextual hints (small score penalty) and free questions about the simulation. */
 export function AssistantPanel({ simulationId, active, hintsUsed, hintPenalty, onHint }: {
   simulationId: number
@@ -25,6 +25,7 @@ export function AssistantPanel({ simulationId, active, hintsUsed, hintPenalty, o
   hintPenalty?: number
   onHint: (hintsUsed: number) => void
 }) {
+  const { t } = useTranslation()
   const [entries, setEntries] = useState<ChatEntry[]>([])
   const [question, setQuestion] = useState('')
   const [busy, setBusy] = useState(false)
@@ -71,15 +72,14 @@ export function AssistantPanel({ simulationId, active, hintsUsed, hintPenalty, o
     <Paper sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
         <Typography variant="overline" color="secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          <AutoAwesomeIcon fontSize="inherit" /> AI assistant
+          <AutoAwesomeIcon fontSize="inherit" /> {t('sim.assistant')}
         </Typography>
-        <Chip size="small" label={`Hints used: ${hintsUsed}`} variant="outlined" color="secondary" />
+        <Chip size="small" label={t('sim.hintsUsed', { count: hintsUsed })} variant="outlined" color="secondary" />
       </Stack>
       <Box sx={{ flexGrow: 1, overflowY: 'auto', maxHeight: 380, minHeight: 200, my: 1 }}>
         {entries.length === 0 && (
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            Stuck? Ask about a log entry or a concept, or request a hint. The assistant knows the evidence you can see
-            and the actions you have taken, but it will not give away the full solution.
+            {t('sim.assistantIntro')}
           </Typography>
         )}
         {entries.map((entry) => (
@@ -92,11 +92,14 @@ export function AssistantPanel({ simulationId, active, hintsUsed, hintPenalty, o
             <Box sx={{ mr: 2, p: 1.25, borderRadius: 2, bgcolor: 'rgba(167,139,250,0.10)', border: '1px solid rgba(167,139,250,0.2)' }}>
               {entry.kind === 'HINT' && (
                 <Typography variant="caption" color="secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <LightbulbIcon fontSize="inherit" /> Hint
+                  <LightbulbIcon fontSize="inherit" /> {t('sim.hint')}
                 </Typography>
               )}
               <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{entry.answer}</Typography>
-              <Typography variant="caption" color="text.secondary">{sourceLabel[entry.source]}</Typography>
+              <TranslateButton text={entry.answer} />
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                {t(`aiSource.${entry.source}`)}
+              </Typography>
             </Box>
           </Box>
         ))}
@@ -108,10 +111,10 @@ export function AssistantPanel({ simulationId, active, hintsUsed, hintPenalty, o
         <>
           <Button variant="outlined" color="secondary" startIcon={<LightbulbIcon />} disabled={busy}
             onClick={() => run(() => simulationApi.hint(simulationId))} sx={{ mb: 1 }}>
-            Get a hint{hintPenalty ? ` (−${hintPenalty} points)` : ''}
+            {t('sim.getHint')}{hintPenalty ? t('sim.hintPenalty', { count: hintPenalty }) : ''}
           </Button>
           <Box component="form" onSubmit={ask} sx={{ display: 'flex', gap: 1 }}>
-            <TextField size="small" fullWidth placeholder="Ask the assistant…" value={question}
+            <TextField size="small" fullWidth placeholder={t('sim.askPlaceholder')} value={question}
               onChange={(e) => setQuestion(e.target.value)} slotProps={{ htmlInput: { maxLength: 500 } }} />
             <IconButton type="submit" color="secondary" disabled={busy || !question.trim()}><SendIcon /></IconButton>
           </Box>

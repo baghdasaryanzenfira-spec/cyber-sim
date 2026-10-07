@@ -314,6 +314,7 @@ export interface ScenarioDefinition {
   hints: string[]
 }
 
+
 export interface AdminScenarioSummary {
   id: number
   slug: string

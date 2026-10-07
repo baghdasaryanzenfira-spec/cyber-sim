@@ -53,6 +53,7 @@ public class MockAiProvider implements AiProvider {
             case AiPayload.Feedback f -> toJson(feedback(f.snapshot(), f.score()));
             case AiPayload.Recommendation r -> toJson(recommendations(r.stats()));
             case AiPayload.Variation v -> toJson(variation(v.original(), v.newSlug()));
+            case AiPayload.Translation t -> t.text();
         };
         return new AiResponse(text, MODEL, null, null);
     }

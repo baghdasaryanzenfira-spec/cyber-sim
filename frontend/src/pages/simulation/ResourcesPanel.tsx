@@ -6,6 +6,7 @@ import PersonIcon from '@mui/icons-material/Person'
 import StorageIcon from '@mui/icons-material/Storage'
 import { Box, Chip, Paper, Stack, Tooltip, Typography } from '@mui/material'
 import type { ReactElement } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { ResourceType, ResourceView } from '../../api/types'
 import { resourceStatusColor } from '../../components/Chips'
 import { MONO } from '../../theme'
@@ -20,9 +21,10 @@ function formatValue(value: unknown): string {
 }
 
 export function ResourcesPanel({ resources }: { resources: ResourceView[] }) {
+  const { t } = useTranslation()
   return (
     <Paper sx={{ p: 2, height: '100%' }}>
-      <Typography variant="overline" color="primary">Cloud resources</Typography>
+      <Typography variant="overline" color="primary">{t('sim.resources')}</Typography>
       <Stack spacing={1.25} sx={{ mt: 1 }}>
         {resources.map((r) => (
           <Box key={r.key} sx={{ p: 1.25, borderRadius: 2, border: '1px solid', borderColor: 'divider', bgcolor: 'rgba(15,23,42,0.6)' }}>

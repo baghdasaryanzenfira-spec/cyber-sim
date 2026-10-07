@@ -42,4 +42,14 @@ public sealed interface AiPayload {
             return AiTask.VARIATION;
         }
     }
+
+    /**
+     * Translate one piece of displayed text into {@code languageName} on demand. The result is shown next to the
+     * original and never stored: the English text stays the source of truth (ADR-12).
+     */
+    record Translation(String text, String languageName) implements AiPayload {
+        public AiTask task() {
+            return AiTask.TRANSLATION;
+        }
+    }
 }

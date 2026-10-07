@@ -186,7 +186,7 @@ erDiagram
   - Why `jsonb`: the breakdown is only displayed, never queried relationally.
 
 ### 3.4 `ai_interactions`
-Audit log of every AI request: type (`HINT`, `QUESTION`, `FEEDBACK`, `RECOMMENDATION`, `VARIATION`),
+Audit log of every AI request: type (`HINT`, `QUESTION`, `FEEDBACK`, `RECOMMENDATION`, `VARIATION`, `TRANSLATION`),
 provider (`CLAUDE`, `MOCK`), status (`SUCCESS`, `FALLBACK`, `ERROR`), latency, token counts, the
 student's question and the AI answer. Used for hint penalties, the assistant chat history, and
 analysis of AI reliability in the thesis. Prompts with full scenario context are **not** stored

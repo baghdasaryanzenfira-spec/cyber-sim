@@ -5,7 +5,9 @@ import {
   Box, Button, ButtonBase, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Grid, Paper, TextField, Typography,
 } from '@mui/material'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { ActionOption, ActionPhase, ResourceView } from '../../api/types'
+import { TranslateButton } from '../../components/TranslateButton'
 
 /**
  * Catalogue of actions the student can choose. Actions only change the simulated environment —
@@ -17,6 +19,7 @@ export function ActionsPanel({ actions, resources, disabled, onPerform }: {
   disabled: boolean
   onPerform: (action: ActionOption, note: string) => Promise<void>
 }) {
+  const { t } = useTranslation()
   const [selected, setSelected] = useState<ActionOption | null>(null)
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
@@ -52,7 +55,7 @@ export function ActionsPanel({ actions, resources, disabled, onPerform }: {
                 <Chip size="small" label={a.category} variant="outlined" sx={{ fontSize: 10, height: 20 }} />
               </Box>
               {a.targetResourceKey && (
-                <Typography variant="caption" color="text.secondary">Target: {resourceName(a.targetResourceKey)}</Typography>
+                <Typography variant="caption" color="text.secondary">{t('sim.target', { name: resourceName(a.targetResourceKey) })}</Typography>
               )}
             </ButtonBase>
           </Grid>
@@ -63,26 +66,27 @@ export function ActionsPanel({ actions, resources, disabled, onPerform }: {
 
   return (
     <Paper sx={{ p: 2 }}>
-      <Typography variant="overline" color="primary">Available actions</Typography>
-      {group('INVESTIGATION', 'Investigate & identify', <SearchIcon fontSize="small" color="info" />)}
-      {group('RESPONSE', 'Respond: contain, eradicate, recover, harden', <GppMaybeIcon fontSize="small" color="warning" />)}
+      <Typography variant="overline" color="primary">{t('sim.availableActions')}</Typography>
+      {group('INVESTIGATION', t('sim.investigate'), <SearchIcon fontSize="small" color="info" />)}
+      {group('RESPONSE', t('sim.respond'), <GppMaybeIcon fontSize="small" color="warning" />)}
 
       <Dialog open={selected != null} onClose={() => !busy && setSelected(null)} maxWidth="sm" fullWidth>
         <DialogTitle>{selected?.label}</DialogTitle>
         <DialogContent>
-          <Typography sx={{ mb: 1 }}>{selected?.description}</Typography>
+          <Typography sx={{ mb: 0.5 }}>{selected?.description}</Typography>
+          {selected && <TranslateButton text={`${selected.label}\n${selected.description}`} />}
           {selected?.targetResourceKey && (
-            <Typography variant="body2" color="text.secondary">Target resource: {resourceName(selected.targetResourceKey)}</Typography>
+            <Typography variant="body2" color="text.secondary">{t('sim.targetResource', { name: resourceName(selected.targetResourceKey) })}</Typography>
           )}
           {selected?.performed && (
-            <Typography variant="body2" color="warning.main" sx={{ mt: 1 }}>You already performed this action.</Typography>
+            <Typography variant="body2" color="warning.main" sx={{ mt: 1 }}>{t('sim.alreadyPerformed')}</Typography>
           )}
-          <TextField fullWidth multiline minRows={2} label="Analyst note (optional)" value={note} sx={{ mt: 2 }}
+          <TextField fullWidth multiline minRows={2} label={t('sim.analystNote')} value={note} sx={{ mt: 2 }}
             onChange={(e) => setNote(e.target.value)} slotProps={{ htmlInput: { maxLength: 500 } }} />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setSelected(null)} disabled={busy}>Cancel</Button>
-          <Button variant="contained" onClick={confirm} disabled={busy}>Execute</Button>
+          <Button onClick={() => setSelected(null)} disabled={busy}>{t('common.cancel')}</Button>
+          <Button variant="contained" onClick={confirm} disabled={busy}>{t('sim.execute')}</Button>
         </DialogActions>
       </Dialog>
     </Paper>

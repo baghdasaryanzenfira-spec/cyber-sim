@@ -5,6 +5,7 @@ import TravelExploreIcon from '@mui/icons-material/TravelExplore'
 import { Button, Grid, Paper, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material'
 import { BarChart } from '@mui/x-charts/BarChart'
 import { LineChart } from '@mui/x-charts/LineChart'
+import { useTranslation } from 'react-i18next'
 import { Link as RouterLink } from 'react-router'
 import { adminApi } from '../../api/endpoints'
 import { StatusChip, scoreColor } from '../../components/Chips'
@@ -14,6 +15,7 @@ import { StatTile } from '../../components/StatTile'
 import { useLoad } from '../../hooks/useLoad'
 
 export function AdminDashboardPage() {
+  const { t } = useTranslation()
   const overview = useLoad(adminApi.overview)
   const recent = useLoad(() => adminApi.attempts({ size: 6 }))
   const mistakes = useLoad(adminApi.mistakes)
@@ -24,41 +26,41 @@ export function AdminDashboardPage() {
 
   return (
     <>
-      <PageHeader title="Admin dashboard" subtitle="Platform activity, scenario performance and common mistakes." />
+      <PageHeader title={t('admin.dashboardTitle')} subtitle={t('admin.dashboardSubtitle')} />
       <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid size={{ xs: 6, md: 3 }}><StatTile label="Students" value={o.totals.students} hint={`${o.totals.users} users total`} icon={<GroupIcon />} /></Grid>
-        <Grid size={{ xs: 6, md: 3 }}><StatTile label="Active scenarios" value={o.totals.activeScenarios} icon={<TravelExploreIcon />} color="secondary.main" /></Grid>
-        <Grid size={{ xs: 6, md: 3 }}><StatTile label="Simulations" value={o.totals.simulations} hint={`${o.totals.completed} completed · ${o.totals.inProgress} in progress`} icon={<PlaylistAddCheckIcon />} color="success.main" /></Grid>
-        <Grid size={{ xs: 6, md: 3 }}><StatTile label="Average score" value={o.totals.averageScore ?? '—'} hint={`completion rate ${o.totals.completionRatePercent ?? 0}%`} icon={<PercentIcon />} color="warning.main" /></Grid>
+        <Grid size={{ xs: 6, md: 3 }}><StatTile label={t('admin.students')} value={o.totals.students} hint={t('admin.usersTotal', { count: o.totals.users })} icon={<GroupIcon />} /></Grid>
+        <Grid size={{ xs: 6, md: 3 }}><StatTile label={t('admin.activeScenarios')} value={o.totals.activeScenarios} icon={<TravelExploreIcon />} color="secondary.main" /></Grid>
+        <Grid size={{ xs: 6, md: 3 }}><StatTile label={t('admin.simulations')} value={o.totals.simulations} hint={t('admin.completedInProgress', { completed: o.totals.completed, inProgress: o.totals.inProgress })} icon={<PlaylistAddCheckIcon />} color="success.main" /></Grid>
+        <Grid size={{ xs: 6, md: 3 }}><StatTile label={t('admin.averageScore')} value={o.totals.averageScore ?? '—'} hint={t('admin.completionRate', { rate: o.totals.completionRatePercent ?? 0 })} icon={<PercentIcon />} color="warning.main" /></Grid>
       </Grid>
       <Grid container spacing={2} sx={{ mb: 2 }}>
         <Grid size={{ xs: 12, md: 7 }}>
           <Paper sx={{ p: 2 }}>
-            <Typography variant="h6">Attempts — last 14 days</Typography>
+            <Typography variant="h6">{t('admin.attempts14d')}</Typography>
             <LineChart height={260}
               xAxis={[{ scaleType: 'point', data: o.attemptsPerDay.map((d) => d.day.substring(5)) }]} yAxis={[{ tickMinStep: 1 }]}
               series={[
-                { data: o.attemptsPerDay.map((d) => d.attempts), label: 'Started', color: '#22d3ee', curve: 'linear' },
-                { data: o.attemptsPerDay.map((d) => d.completed), label: 'Completed', color: '#34d399', curve: 'linear' },
+                { data: o.attemptsPerDay.map((d) => d.attempts), label: t('admin.startedSeries'), color: '#22d3ee', curve: 'linear' },
+                { data: o.attemptsPerDay.map((d) => d.completed), label: t('admin.completedSeries'), color: '#34d399', curve: 'linear' },
               ]} />
           </Paper>
         </Grid>
         <Grid size={{ xs: 12, md: 5 }}>
           <Paper sx={{ p: 2 }}>
-            <Typography variant="h6">Average score per scenario</Typography>
+            <Typography variant="h6">{t('admin.avgScorePerScenario')}</Typography>
             <BarChart height={260} layout="horizontal"
               yAxis={[{ scaleType: 'band', data: o.scenarios.map((s) => s.title.length > 22 ? s.title.substring(0, 22) + '…' : s.title), width: 150 }]}
               xAxis={[{ min: 0, max: 100 }]}
-              series={[{ data: o.scenarios.map((s) => s.averageScore ?? 0), label: 'Avg score', color: '#a78bfa' }]} />
+              series={[{ data: o.scenarios.map((s) => s.averageScore ?? 0), label: t('admin.avgScoreSeries'), color: '#a78bfa' }]} />
           </Paper>
         </Grid>
       </Grid>
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 7 }}>
           <Paper sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom>Recent attempts</Typography>
+            <Typography variant="h6" gutterBottom>{t('admin.recentAttempts')}</Typography>
             <Table size="small">
-              <TableHead><TableRow><TableCell>Student</TableCell><TableCell>Scenario</TableCell><TableCell>Status</TableCell><TableCell>Score</TableCell><TableCell /></TableRow></TableHead>
+              <TableHead><TableRow><TableCell>{t('admin.student')}</TableCell><TableCell>{t('admin.scenario')}</TableCell><TableCell>{t('admin.status')}</TableCell><TableCell>{t('admin.score')}</TableCell><TableCell /></TableRow></TableHead>
               <TableBody>
                 {recent.data?.items.map((a) => (
                   <TableRow key={a.id} hover>
@@ -66,7 +68,7 @@ export function AdminDashboardPage() {
                     <TableCell>{a.scenarioTitle}</TableCell>
                     <TableCell><StatusChip status={a.status} /></TableCell>
                     <TableCell><Typography color={scoreColor(a.scorePercent)} sx={{ fontWeight: 700 }}>{a.scorePercent ?? '—'}</Typography></TableCell>
-                    <TableCell align="right"><Button size="small" component={RouterLink} to={`/admin/attempts/${a.id}`}>Details</Button></TableCell>
+                    <TableCell align="right"><Button size="small" component={RouterLink} to={`/admin/attempts/${a.id}`}>{t('common.details')}</Button></TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -75,9 +77,9 @@ export function AdminDashboardPage() {
         </Grid>
         <Grid size={{ xs: 12, md: 5 }}>
           <Paper sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom>Most common mistakes</Typography>
+            <Typography variant="h6" gutterBottom>{t('admin.commonMistakes')}</Typography>
             <Table size="small">
-              <TableHead><TableRow><TableCell>Harmful action</TableCell><TableCell align="right">Count</TableCell></TableRow></TableHead>
+              <TableHead><TableRow><TableCell>{t('admin.harmfulAction')}</TableCell><TableCell align="right">{t('admin.count')}</TableCell></TableRow></TableHead>
               <TableBody>
                 {mistakes.data?.harmfulActions.slice(0, 5).map((m) => (
                   <TableRow key={m.scenarioTitle + m.actionKey}>
@@ -87,7 +89,7 @@ export function AdminDashboardPage() {
                 ))}
               </TableBody>
             </Table>
-            <Button component={RouterLink} to="/admin/analytics" sx={{ mt: 1 }}>All analytics</Button>
+            <Button component={RouterLink} to="/admin/analytics" sx={{ mt: 1 }}>{t('admin.allAnalytics')}</Button>
           </Paper>
         </Grid>
       </Grid>

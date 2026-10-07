@@ -6,15 +6,18 @@ Training Platform Using Artificial Intelligence"*.
 CyberSim lets students investigate **simulated** cloud security incidents (SSH brute force, compromised
 credentials, public storage bucket), perform response actions, ask an **AI tutor** (Claude) for hints, and receive a
 deterministic score plus AI-generated feedback. Administrators author scenarios, review attempts and analyse common
-mistakes. Everything runs locally; nothing touches real external systems.
+mistakes. The interface is available in English and Armenian (EN / ՀԱՅ switch in the app bar), and any text that comes
+from a scenario — briefings, log lines, AI answers — has a *Translate* link that renders it in Armenian on
+request, without storing anything. Everything runs locally; nothing touches real
+external systems.
 
 | | |
 |---|---|
 | Backend | Java 21, Spring Boot 4.1, Spring Security (JWT), Spring Data JPA / Hibernate 7, Flyway, PostgreSQL 17 |
-| Frontend | React 19, TypeScript, Vite 8, MUI 9, MUI X Charts, React Router 8, Axios |
+| Frontend | React 19, TypeScript, Vite 8, MUI 9, MUI X Charts, React Router 8, Axios, react-i18next (English + Armenian UI) |
 | AI | Claude API via the official Anthropic Java SDK (default model `claude-opus-5-5`) + offline mock provider |
 | Infrastructure | Docker Compose (PostgreSQL, backend, nginx frontend, optional LocalStack) |
-| Tests | JUnit 5, Mockito, Spring Boot Test, MockMvc, Testcontainers — 74 backend tests |
+| Tests | JUnit 5, Mockito, Spring Boot Test, MockMvc, Testcontainers — 81 backend tests |
 
 ## Quick start (Docker)
 

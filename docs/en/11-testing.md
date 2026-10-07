@@ -30,7 +30,7 @@
 | `AiGatewayTest` | unit + Mockito | 6 | mock primary, valid AI answer, exception, invalid JSON, solution-leaking hint, timeout → fallback |
 | `MockAiProviderTest` | unit | 3 | escalating hints, refusal of full solution, feedback content |
 | `AdminIntegrationTest` | API | 6 | role protection, create/edit/deactivate scenario, 422 validation, AI variation draft, attempts & analytics, user disabling |
-| **Total** | | **74** | |
+| **Total** | | **81** | |
 
 ## 3. Results
 
@@ -40,6 +40,10 @@
 | 2026-10-06 | `npm run build` (tsc + vite) | build successful | **TESTED** (type check) |
 | 2026-10-06 | smoke script against `docker compose up` | login, simulation, hint, question, completion (score 58 = hand-calculated), admin analytics, student → admin API = 403 | **VERIFIED** |
 | 2026-10-06 | manual check in Chrome | login, dashboard, scenario list/briefing, start simulation | **VERIFIED** (layout issue found and fixed, see log) |
+| 2026-10-07 | `cd backend && mvnw test` | 81 tests, 0 failures, 0 errors (7 new: translation guards) | **TESTED** |
+| 2026-10-07 | `docker compose up --build` after `down -v` | Flyway applies V1 + V2, seeds re-import | **VERIFIED** |
+| 2026-10-07 | `POST /api/ai/translate` as a student | returns the text and its `source`; unsupported language → 400 `UNSUPPORTED_LANGUAGE`; empty and over-length input rejected | **VERIFIED** |
+| 2026-10-07 | manual check in Chrome (EN + ՀԱՅ) | login, dashboard, scenario briefing, simulation console, admin pages; *Translate* link on briefing, objectives and every log line | **VERIFIED** (layout bug in the result panel found and fixed) |
 
 ## 4. Not covered / limitations
 - No automated frontend tests (component or browser E2E). Recommended next step: Playwright tests for the login →

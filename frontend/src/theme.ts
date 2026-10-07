@@ -2,6 +2,9 @@ import { createTheme } from '@mui/material/styles'
 
 export const MONO = '"JetBrains Mono", "Consolas", monospace'
 
+/** Inter covers Latin; Noto Sans Armenian is picked up per-glyph for Armenian text. */
+const SANS = '"Inter", "Noto Sans Armenian", "Segoe UI", system-ui, sans-serif'
+
 /** Dark "security operations centre" theme. */
 export const theme = createTheme({
   palette: {
@@ -18,7 +21,7 @@ export const theme = createTheme({
   },
   shape: { borderRadius: 10 },
   typography: {
-    fontFamily: '"Inter", "Segoe UI", system-ui, sans-serif',
+    fontFamily: SANS,
     h4: { fontWeight: 700, letterSpacing: '-0.02em' },
     h5: { fontWeight: 700 },
     h6: { fontWeight: 600 },

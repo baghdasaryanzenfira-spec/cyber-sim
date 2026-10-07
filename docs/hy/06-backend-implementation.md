@@ -13,19 +13,19 @@ backend/
     │   ├── CyberSimApplication.java
     │   ├── common/             ApiError, GlobalExceptionHandler, domain exceptions
     │   ├── config/             AppProperties, OpenApiConfig, ClockConfig, CORS
-    │   ├── security/           SecurityConfig, JwtTokenService, CurrentUser
+    │   ├── security/           SecurityConfig, JwtConfig, JwtTokenService, AuthUser, AuthUserArgumentResolver
     │   ├── auth/               AuthController, AuthService, dto/
-    │   ├── user/               User, Role, UserRepository, UserService, DemoDataInitializer
+    │   ├── user/               User, Role, UserRepository, DemoDataInitializer
     │   ├── scenario/           Scenario + child entities, ScenarioService, ScenarioDefinition(Validator), ScenarioSeeder
-    │   ├── simulation/         Simulation + child entities, SimulationEngine, SimulationStateMachine, SimulationService
+    │   ├── simulation/         Simulation + child entities, SimulationEngine, SimulationStateMachine, SimulationService, SimulationAssistantService
     │   ├── scoring/            ScoringEngine, ScoreResult
-    │   ├── ai/                 AiProvider, ClaudeAiProvider, MockAiProvider, AiAssistantService, AiPromptBuilder, AiOutputValidator
+    │   ├── ai/                 AiProvider, ClaudeAiProvider, MockAiProvider, AiGateway, TutorService, ScenarioVariationService, TranslationService, AiPromptBuilder, AiOutputValidator
     │   ├── progress/           ProgressService, ProgressController
     │   ├── analytics/          AnalyticsService
-    │   └── admin/              Admin* controllers
+    │   └── admin/              AdminController, AdminService
     └── main/resources/
         ├── application.yml
-        ├── db/migration/       Flyway V1__..., V2__...
+        ├── db/migration/       Flyway V1__initial_schema.sql, V2__ai_translation_task.sql
         └── scenarios/          *.json seed scenario definitions
 ```
 
@@ -66,15 +66,21 @@ backend/
 | POST | `/api/simulations/{id}/assistant/ask` | `{question}` ազատ հարց |
 | GET | `/api/simulations/{id}/assistant/messages` | Օգնականի հետ զրույցի պատմությունը |
 
+### AI (ցանկացած մուտք գործած օգտատեր)
+| Մեթոդ | Ուղի | Նկարագրություն |
+|--------|------|-------------|
+| POST | `/api/ai/translate` | `{text, language}` → նույն տեքստը տվյալ լեզվով. ոչինչ չի պահպանվում (ADR-12) |
+
 ### Առաջընթաց (ուսանող)
 | Մեթոդ | Ուղի | Նկարագրություն |
 |--------|------|-------------|
-| GET | `/api/progress/me` | Ընդհանուր ցուցանիշներ, ըստ կատեգորիաների վիճակագրություն, վերջին փորձեր, AI առաջարկություններ |
+| GET | `/api/progress/me` | Ընդհանուր ցուցանիշներ, ըստ կատեգորիաների վիճակագրություն, ըստ սցենարների առաջընթաց, միավորների պատմություն, վերջին փորձեր |
+| GET | `/api/progress/me/recommendations` | AI ուսումնական առաջարկություններ՝ իմ պատմության հիման վրա |
 
 ### Ադմինիստրատոր (`ADMIN` դեր)
 | Մեթոդ | Ուղի | Նկարագրություն |
 |--------|------|-------------|
-| GET | `/api/admin/users` | Օգտատերեր՝ փորձերի վիճակագրությամբ (էջավորված) |
+| GET | `/api/admin/users` | Օգտատերեր՝ փորձերի վիճակագրությամբ |
 | GET | `/api/admin/users/{id}` | Օգտատիրոջ մանրամասներ + առաջընթաց |
 | PATCH | `/api/admin/users/{id}/status` | `{enabled}` |
 | GET | `/api/admin/scenarios` | Բոլոր սցենարները, ներառյալ ոչ ակտիվները |

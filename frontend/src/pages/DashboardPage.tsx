@@ -6,6 +6,7 @@ import TaskAltIcon from '@mui/icons-material/TaskAlt'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import { Box, Button, Chip, Grid, Link, List, ListItem, ListItemText, Paper, Typography } from '@mui/material'
 import { LineChart } from '@mui/x-charts/LineChart'
+import { useTranslation } from 'react-i18next'
 import { Link as RouterLink } from 'react-router'
 import { progressApi, scenarioApi } from '../api/endpoints'
 import { useAuth } from '../auth/AuthContext'
@@ -17,6 +18,7 @@ import { StatTile } from '../components/StatTile'
 import { useLoad } from '../hooks/useLoad'
 
 export function DashboardPage() {
+  const { t } = useTranslation()
   const { user } = useAuth()
   const progress = useLoad(progressApi.me)
   const scenarios = useLoad(scenarioApi.list)
@@ -27,24 +29,24 @@ export function DashboardPage() {
 
   return (
     <>
-      <PageHeader title={`Welcome back, ${user?.displayName}`}
-        subtitle="Investigate simulated cloud incidents, respond like an analyst and learn from AI feedback." />
+      <PageHeader title={t('dashboard.welcome', { name: user?.displayName })}
+        subtitle={t('dashboard.subtitle')} />
       <ErrorAlert message={progress.error ?? scenarios.error} />
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid size={{ xs: 6, md: 3 }}>
-          <StatTile label="Completed" value={p?.totals.completed ?? 0} hint={`${p?.totals.attempts ?? 0} attempts`}
+          <StatTile label={t('dashboard.completed')} value={p?.totals.completed ?? 0} hint={t('dashboard.attempts', { count: p?.totals.attempts ?? 0 })}
             icon={<TaskAltIcon />} />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <StatTile label="Average score" value={p?.totals.averageScore ?? '—'} hint="out of 100"
+          <StatTile label={t('dashboard.averageScore')} value={p?.totals.averageScore ?? '—'} hint={t('dashboard.outOf100')}
             icon={<TrendingUpIcon />} color="success.main" />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <StatTile label="Best score" value={p?.totals.bestScore ?? '—'} icon={<EmojiEventsIcon />} color="warning.main" />
+          <StatTile label={t('dashboard.bestScore')} value={p?.totals.bestScore ?? '—'} icon={<EmojiEventsIcon />} color="warning.main" />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <StatTile label="AI hints used" value={p?.totals.hintsUsed ?? 0} hint={`${p?.totals.trainingMinutes ?? 0} min of training`}
+          <StatTile label={t('dashboard.hintsUsed')} value={p?.totals.hintsUsed ?? 0} hint={t('dashboard.minTraining', { count: p?.totals.trainingMinutes ?? 0 })}
             icon={<LightbulbIcon />} color="secondary.main" />
         </Grid>
       </Grid>
@@ -52,28 +54,28 @@ export function DashboardPage() {
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid size={{ xs: 12, md: 7 }}>
           <Paper sx={{ p: 2, height: '100%' }}>
-            <Typography variant="h6" gutterBottom>Score history</Typography>
+            <Typography variant="h6" gutterBottom>{t('dashboard.scoreHistory')}</Typography>
             {p && p.scoreHistory.length > 0 ? (
               <LineChart height={240}
-                xAxis={[{ data: p.scoreHistory.map((_, i) => i + 1), label: 'Attempt', scaleType: 'point' }]}
+                xAxis={[{ data: p.scoreHistory.map((_, i) => i + 1), label: t('dashboard.attempt'), scaleType: 'point' }]}
                 yAxis={[{ min: 0, max: 100 }]}
-                series={[{ data: p.scoreHistory.map((s) => s.scorePercent), label: 'Score', color: '#22d3ee', area: true, showMark: true }]} />
+                series={[{ data: p.scoreHistory.map((s) => s.scorePercent), label: t('dashboard.score'), color: '#22d3ee', area: true, showMark: true }]} />
             ) : (
               <Typography color="text.secondary" sx={{ py: 6, textAlign: 'center' }}>
-                Complete your first simulation to see your progress here.
+                {t('dashboard.emptyChart')}
               </Typography>
             )}
           </Paper>
         </Grid>
         <Grid size={{ xs: 12, md: 5 }}>
           <Paper sx={{ p: 2, height: '100%' }}>
-            <Typography variant="h6" gutterBottom>Unfinished simulations</Typography>
-            {active.length === 0 && <Typography color="text.secondary">No simulation in progress.</Typography>}
+            <Typography variant="h6" gutterBottom>{t('dashboard.unfinished')}</Typography>
+            {active.length === 0 && <Typography color="text.secondary">{t('dashboard.noActive')}</Typography>}
             <List dense>
               {active.map((s) => (
                 <ListItem key={s.scenarioId} secondaryAction={
                   <Button size="small" startIcon={<PlayArrowIcon />} component={RouterLink}
-                    to={`/simulations/${s.activeSimulationId}`}>Resume</Button>
+                    to={`/simulations/${s.activeSimulationId}`}>{t('dashboard.resume')}</Button>
                 }>
                   <ListItemText primary={s.title} secondary={s.lastStatus && <StatusChip status={s.lastStatus} />} />
                 </ListItem>
@@ -81,10 +83,10 @@ export function DashboardPage() {
             </List>
             <Box sx={{ mt: 2, p: 2, borderRadius: 2, bgcolor: 'rgba(167,139,250,0.08)' }}>
               <Typography variant="subtitle2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <AutoAwesomeIcon fontSize="small" color="secondary" /> AI study recommendations
+                <AutoAwesomeIcon fontSize="small" color="secondary" /> {t('dashboard.aiRecommendations')}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                Personalised topics based on your results are on the <Link component={RouterLink} to="/history">progress page</Link>.
+                {t('dashboard.aiRecommendationsHint')} <Link component={RouterLink} to="/history">{t('dashboard.progressPage')}</Link>.
               </Typography>
             </Box>
           </Paper>
@@ -92,8 +94,8 @@ export function DashboardPage() {
       </Grid>
 
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-        <Typography variant="h6">Training scenarios</Typography>
-        <Chip label={`${scenarios.data?.length ?? 0} available`} size="small" />
+        <Typography variant="h6">{t('dashboard.trainingScenarios')}</Typography>
+        <Chip label={t('dashboard.available', { count: scenarios.data?.length ?? 0 })} size="small" />
       </Box>
       <Grid container spacing={2}>
         {scenarios.data?.map((s) => (

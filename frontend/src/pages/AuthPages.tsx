@@ -1,12 +1,15 @@
 import ShieldIcon from '@mui/icons-material/Shield'
 import { Alert, Box, Button, Card, CardContent, Link, Stack, TextField, Typography } from '@mui/material'
 import { useState, type FormEvent, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link as RouterLink, Navigate, useLocation, useNavigate } from 'react-router'
 import { errorMessage } from '../api/client'
 import { authApi } from '../api/endpoints'
 import { useAuth } from '../auth/AuthContext'
+import { LanguageSwitcher } from '../components/LanguageSwitcher'
 
 function AuthShell({ title, children }: { title: string; children: ReactNode }) {
+  const { t } = useTranslation()
   return (
     <Box sx={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2,
@@ -16,10 +19,11 @@ function AuthShell({ title, children }: { title: string; children: ReactNode }) 
         <CardContent sx={{ p: 4 }}>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
             <ShieldIcon color="primary" fontSize="large" />
-            <Typography variant="h5">CyberSim</Typography>
+            <Typography variant="h5" sx={{ flexGrow: 1 }}>CyberSim</Typography>
+            <LanguageSwitcher />
           </Stack>
           <Typography color="text.secondary" sx={{ mb: 3 }}>
-            Cloud cyber incident simulation &amp; security specialist training
+            {t('auth.subtitle')}
           </Typography>
           <Typography variant="h6" sx={{ mb: 2 }}>{title}</Typography>
           {children}
@@ -30,6 +34,7 @@ function AuthShell({ title, children }: { title: string; children: ReactNode }) 
 }
 
 export function LoginPage() {
+  const { t } = useTranslation()
   const { user, login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -57,16 +62,16 @@ export function LoginPage() {
   }
 
   return (
-    <AuthShell title="Sign in">
-      {registered && <Alert severity="success" sx={{ mb: 2 }}>Account created — you can sign in now.</Alert>}
+    <AuthShell title={t('auth.signIn')}>
+      {registered && <Alert severity="success" sx={{ mb: 2 }}>{t('auth.registered')}</Alert>}
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       <Box component="form" onSubmit={submit}>
         <Stack spacing={2}>
-          <TextField label="E-mail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
-          <TextField label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-          <Button type="submit" variant="contained" size="large" disabled={busy}>Sign in</Button>
+          <TextField label={t('auth.email')} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
+          <TextField label={t('auth.password')} type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          <Button type="submit" variant="contained" size="large" disabled={busy}>{t('auth.signIn')}</Button>
           <Typography variant="body2" color="text.secondary">
-            No account yet? <Link component={RouterLink} to="/register">Register</Link>
+            {t('auth.noAccount')} <Link component={RouterLink} to="/register">{t('auth.register')}</Link>
           </Typography>
         </Stack>
       </Box>
@@ -75,6 +80,7 @@ export function LoginPage() {
 }
 
 export function RegisterPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [form, setForm] = useState({ email: '', displayName: '', password: '' })
   const [error, setError] = useState<string | null>(null)
@@ -95,19 +101,19 @@ export function RegisterPage() {
   }
 
   return (
-    <AuthShell title="Create a student account">
+    <AuthShell title={t('auth.registerTitle')}>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       <Box component="form" onSubmit={submit}>
         <Stack spacing={2}>
-          <TextField label="Display name" value={form.displayName} required
+          <TextField label={t('auth.displayName')} value={form.displayName} required
             onChange={(e) => setForm({ ...form, displayName: e.target.value })} />
-          <TextField label="E-mail" type="email" value={form.email} required
+          <TextField label={t('auth.email')} type="email" value={form.email} required
             onChange={(e) => setForm({ ...form, email: e.target.value })} />
-          <TextField label="Password" type="password" value={form.password} required helperText="At least 8 characters"
+          <TextField label={t('auth.password')} type="password" value={form.password} required helperText={t('auth.passwordHelp')}
             onChange={(e) => setForm({ ...form, password: e.target.value })} />
-          <Button type="submit" variant="contained" size="large" disabled={busy}>Register</Button>
+          <Button type="submit" variant="contained" size="large" disabled={busy}>{t('auth.register')}</Button>
           <Typography variant="body2" color="text.secondary">
-            Already registered? <Link component={RouterLink} to="/login">Sign in</Link>
+            {t('auth.alreadyRegistered')} <Link component={RouterLink} to="/login">{t('auth.signIn')}</Link>
           </Typography>
         </Stack>
       </Box>

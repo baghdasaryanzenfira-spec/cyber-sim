@@ -2,8 +2,10 @@ import FlagIcon from '@mui/icons-material/Flag'
 import OutlinedFlagIcon from '@mui/icons-material/OutlinedFlag'
 import { Box, IconButton, MenuItem, Paper, Stack, Tab, Tabs, TextField, Tooltip, Typography } from '@mui/material'
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { EventView } from '../../api/types'
 import { SeverityChip } from '../../components/Chips'
+import { TranslateButton } from '../../components/TranslateButton'
 import { MONO } from '../../theme'
 
 export function formatTime(iso: string) {
@@ -19,6 +21,7 @@ export function LogsPanel({ events, readOnly, onFlag }: {
   readOnly: boolean
   onFlag: (event: EventView) => void
 }) {
+  const { t } = useTranslation()
   const [tab, setTab] = useState<'all' | 'alerts' | 'evidence'>('all')
   const [source, setSource] = useState('')
   const telemetry = events.filter((e) => e.type !== 'SYSTEM')
@@ -32,22 +35,22 @@ export function LogsPanel({ events, readOnly, onFlag }: {
   return (
     <Paper sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-        <Typography variant="overline" color="primary">Logs &amp; alerts</Typography>
-        <TextField select size="small" label="Source" value={source} onChange={(e) => setSource(e.target.value)}
+        <Typography variant="overline" color="primary">{t('sim.logsAlerts')}</Typography>
+        <TextField select size="small" label={t('sim.source')} value={source} onChange={(e) => setSource(e.target.value)}
           sx={{ minWidth: 170 }}>
-          <MenuItem value="">All sources</MenuItem>
+          <MenuItem value="">{t('sim.allSources')}</MenuItem>
           {sources.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
         </TextField>
       </Stack>
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ minHeight: 36, mb: 1 }}>
-        <Tab value="all" label={`All (${telemetry.length})`} sx={{ minHeight: 36 }} />
-        <Tab value="alerts" label={`Alerts (${telemetry.filter((e) => e.type === 'ALERT').length})`} sx={{ minHeight: 36 }} />
-        <Tab value="evidence" label={`Evidence board (${telemetry.filter((e) => e.flagged).length})`} sx={{ minHeight: 36 }} />
+        <Tab value="all" label={t('sim.tabAll', { count: telemetry.length })} sx={{ minHeight: 36 }} />
+        <Tab value="alerts" label={t('sim.tabAlerts', { count: telemetry.filter((e) => e.type === 'ALERT').length })} sx={{ minHeight: 36 }} />
+        <Tab value="evidence" label={t('sim.tabEvidence', { count: telemetry.filter((e) => e.flagged).length })} sx={{ minHeight: 36 }} />
       </Tabs>
       <Box sx={{ flexGrow: 1, overflowY: 'auto', maxHeight: 460, fontFamily: MONO, fontSize: 12.5 }}>
         {visible.length === 0 && (
           <Typography color="text.secondary" sx={{ p: 2, fontFamily: 'inherit' }}>
-            {tab === 'evidence' ? 'Flag log entries that support your conclusions.' : 'No entries.'}
+            {tab === 'evidence' ? t('sim.flagPrompt') : t('sim.noEntries')}
           </Typography>
         )}
         {visible.map((e) => (
@@ -64,9 +67,10 @@ export function LogsPanel({ events, readOnly, onFlag }: {
                 <Box component="span" sx={{ color: 'primary.light' }}>{e.source}</Box>
               </Box>
               <Box sx={{ wordBreak: 'break-word', color: e.type === 'ALERT' ? '#fecaca' : 'text.primary' }}>{e.message}</Box>
+              <Box sx={{ fontFamily: 'body1.fontFamily' }}><TranslateButton text={e.message} /></Box>
             </Box>
             {!readOnly && (
-              <Tooltip title={e.flagged ? 'Remove from evidence board' : 'Flag as evidence'}>
+              <Tooltip title={e.flagged ? t('sim.flagRemove') : t('sim.flagAdd')}>
                 <IconButton size="small" onClick={() => onFlag(e)} color={e.flagged ? 'warning' : 'default'}>
                   {e.flagged ? <FlagIcon fontSize="small" /> : <OutlinedFlagIcon fontSize="small" />}
                 </IconButton>
