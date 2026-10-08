@@ -13,7 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 
 /**
- * Creates one admin and one student account for demonstrations when {@code APP_DEMO_DATA_ENABLED=true}.
+ * Creates one admin account for demonstrations when {@code APP_DEMO_DATA_ENABLED=true}.
  * Passwords come from environment variables; nothing is created if a password is missing,
  * so no default credentials ever exist.
  */
@@ -44,7 +44,6 @@ public class DemoDataInitializer implements ApplicationRunner {
             return;
         }
         createIfMissing(demo.adminEmail(), demo.adminPassword(), "Platform Admin", Role.ADMIN);
-        createIfMissing(demo.studentEmail(), demo.studentPassword(), "Demo Student", Role.STUDENT);
     }
 
     private void createIfMissing(String email, String password, String displayName, Role role) {

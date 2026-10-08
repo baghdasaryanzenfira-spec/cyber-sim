@@ -30,7 +30,7 @@ import java.util.function.Function;
  *
  * <p>Inputs: a typed {@link AiPayload}, the audit context and a validator/parser for the expected output.
  * Output: the validated value plus its source. This method never throws because of the AI provider — a broken or
- * unreachable model can never break a training session.
+ * unreachable model can never break an authoring session.
  */
 @Component
 public class AiGateway {
@@ -56,7 +56,7 @@ public class AiGateway {
         this.clock = clock;
     }
 
-    public record CallContext(Long userId, Long simulationId, Long scenarioId, String requestText) {
+    public record CallContext(Long userId, Long scenarioId, String requestText) {
     }
 
     public record AiResult<T>(T value, AiSource source, Long interactionId) {
@@ -106,7 +106,7 @@ public class AiGateway {
 
     private Long record(CallContext ctx, AiTask task, AiProvider.Type provider, AiResponse response,
                         AiInteraction.Status status, long start) {
-        AiInteraction interaction = new AiInteraction(ctx.userId(), ctx.simulationId(), ctx.scenarioId(), task,
+        AiInteraction interaction = new AiInteraction(ctx.userId(), ctx.scenarioId(), task,
                 provider, response.model(), status, truncate(ctx.requestText()), truncate(response.text()),
                 (int) elapsedMs(start), response.inputTokens(), response.outputTokens(), clock.instant());
         interactions.save(interaction);

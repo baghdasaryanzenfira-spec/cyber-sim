@@ -2,16 +2,13 @@ package am.cybersim.auth;
 
 import am.cybersim.auth.dto.AuthResponse;
 import am.cybersim.auth.dto.LoginRequest;
-import am.cybersim.auth.dto.RegisterRequest;
 import am.cybersim.common.ApiException;
 import am.cybersim.security.JwtTokenService;
-import am.cybersim.user.Role;
 import am.cybersim.user.User;
 import am.cybersim.user.UserRepository;
 import am.cybersim.user.dto.UserDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -20,7 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 
 /**
- * Registration and login.
+ * Administrator login. There is no self-registration: admin accounts are provisioned by the operator
+ * (see {@code DemoDataInitializer}).
  *
  * <p>Security considerations:
  * <ul>
@@ -47,24 +45,6 @@ public class AuthService {
         this.tokenService = tokenService;
         this.clock = clock;
         this.dummyHash = passwordEncoder.encode("timing-equalisation-dummy-password");
-    }
-
-    @Transactional
-    public UserDto register(RegisterRequest request) {
-        String email = User.normalizeEmail(request.email());
-        if (users.existsByEmail(email)) {
-            throw ApiException.conflict("EMAIL_TAKEN", "An account with this e-mail already exists");
-        }
-        User user = new User(email, request.displayName().trim(), passwordEncoder.encode(request.password()),
-                Role.STUDENT, clock.instant());
-        try {
-            users.saveAndFlush(user);
-        } catch (DataIntegrityViolationException e) {
-            // concurrent registration with the same e-mail
-            throw ApiException.conflict("EMAIL_TAKEN", "An account with this e-mail already exists");
-        }
-        log.info("Registered new student account id={}", user.getId());
-        return UserDto.from(user);
     }
 
     @Transactional

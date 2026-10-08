@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
  *   <li>events can only be revealed by INVESTIGATION actions;</li>
  *   <li>prerequisites form no cycles;</li>
  *   <li>points have the sign required by the outcome (EXPECTED &gt; 0, NEUTRAL = 0, HARMFUL &lt; 0);</li>
- *   <li>the scenario is playable: в‰Ґ 1 expected action, в‰Ґ 1 initially visible event, в‰Ґ 1 evidence event.</li>
+ *   <li>the scenario is playable: ≥ 1 expected action, ≥ 1 initially visible event, ≥ 1 evidence event.</li>
  * </ul>
  *
  * <p>Security consideration: this validator is the gate for AI-generated content as well вЂ” AI output is
@@ -53,6 +53,15 @@ public class ScenarioDefinitionValidator {
     }
 
     public void validate(ScenarioDefinition def) {
+        List<ApiError.FieldError> errors = collectErrors(def);
+        if (!errors.isEmpty()) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, "INVALID_SCENARIO",
+                    "Scenario definition is invalid", errors);
+        }
+    }
+
+    /** Same checks as {@link #validate}, returned instead of thrown (used by the authoring validation report). */
+    public List<ApiError.FieldError> collectErrors(ScenarioDefinition def) {
         List<ApiError.FieldError> errors = new ArrayList<>();
         for (ConstraintViolation<ScenarioDefinition> v : beanValidator.validate(def)) {
             errors.add(new ApiError.FieldError(v.getPropertyPath().toString(), v.getMessage()));
@@ -60,10 +69,7 @@ public class ScenarioDefinitionValidator {
         if (errors.isEmpty()) {
             validateCrossReferences(def, errors);
         }
-        if (!errors.isEmpty()) {
-            throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, "INVALID_SCENARIO",
-                    "Scenario definition is invalid", errors);
-        }
+        return errors;
     }
 
     private void validateCrossReferences(ScenarioDefinition def, List<ApiError.FieldError> errors) {

@@ -1,15 +1,11 @@
-import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
-import AssessmentIcon from '@mui/icons-material/Assessment'
+import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh'
 import DashboardIcon from '@mui/icons-material/Dashboard'
-import GroupIcon from '@mui/icons-material/Group'
-import HistoryIcon from '@mui/icons-material/History'
 import ListAltIcon from '@mui/icons-material/ListAlt'
 import LogoutIcon from '@mui/icons-material/Logout'
 import ShieldIcon from '@mui/icons-material/Shield'
-import TravelExploreIcon from '@mui/icons-material/TravelExplore'
 import {
-  AppBar, Avatar, Box, Chip, Divider, Drawer, IconButton, List, ListItemButton, ListItemIcon, ListItemText,
-  ListSubheader, Toolbar, Tooltip, Typography,
+  AppBar, Avatar, Box, Chip, Drawer, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Toolbar, Tooltip,
+  Typography,
 } from '@mui/material'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -26,18 +22,10 @@ interface NavItem {
   end?: boolean
 }
 
-const studentNav = (t: (key: string) => string): NavItem[] => [
-  { to: '/', label: t('nav.dashboard'), icon: <DashboardIcon />, end: true },
-  { to: '/scenarios', label: t('nav.scenarios'), icon: <TravelExploreIcon /> },
-  { to: '/history', label: t('nav.history'), icon: <HistoryIcon /> },
-]
-
 const adminNav = (t: (key: string) => string): NavItem[] => [
-  { to: '/admin', label: t('nav.adminDashboard'), icon: <AdminPanelSettingsIcon />, end: true },
-  { to: '/admin/users', label: t('nav.users'), icon: <GroupIcon /> },
-  { to: '/admin/scenarios', label: t('nav.scenarios'), icon: <ListAltIcon /> },
-  { to: '/admin/attempts', label: t('nav.attempts'), icon: <ShieldIcon /> },
-  { to: '/admin/analytics', label: t('nav.analytics'), icon: <AssessmentIcon /> },
+  { to: '/admin', label: t('nav.dashboard'), icon: <DashboardIcon />, end: true },
+  { to: '/admin/scenarios', label: t('nav.scenarios'), icon: <ListAltIcon />, end: true },
+  { to: '/admin/generate', label: t('nav.generate'), icon: <AutoFixHighIcon /> },
 ]
 
 function NavList({ items }: { items: NavItem[] }) {
@@ -72,7 +60,7 @@ export function Layout() {
           <LanguageSwitcher sx={{ mr: 2 }} />
           {user && (
             <>
-              <Chip size="small" label={user.role} color={user.role === 'ADMIN' ? 'secondary' : 'primary'}
+              <Chip size="small" label={user.role} color="secondary"
                 variant="outlined" sx={{ mr: 2 }} />
               <Avatar sx={{ width: 30, height: 30, mr: 1, bgcolor: 'primary.dark', fontSize: 14 }}>
                 {user.displayName.charAt(0).toUpperCase()}
@@ -92,17 +80,9 @@ export function Layout() {
         '& .MuiDrawer-paper': { width: DRAWER_WIDTH, boxSizing: 'border-box', bgcolor: '#0d1424' },
       }}>
         <Toolbar />
-        <List subheader={<ListSubheader sx={{ bgcolor: 'transparent' }}>{t('nav.training')}</ListSubheader>}>
-          <NavList items={studentNav(t)} />
+        <List>
+          <NavList items={adminNav(t)} />
         </List>
-        {user?.role === 'ADMIN' && (
-          <>
-            <Divider sx={{ my: 1 }} />
-            <List subheader={<ListSubheader sx={{ bgcolor: 'transparent' }}>{t('nav.administration')}</ListSubheader>}>
-              <NavList items={adminNav(t)} />
-            </List>
-          </>
-        )}
       </Drawer>
       <Box component="main" sx={{ flexGrow: 1, p: 3, minWidth: 0 }}>
         <Toolbar />

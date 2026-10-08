@@ -303,3 +303,19 @@ translation.
 - Real Claude translation: implemented and validated, **not runtime-verified** (no API key). With
   `AI_PROVIDER=mock` the offline tutor echoes the source text and the UI says why.
 - Translations are not cached, so translating the same text twice costs two API calls.
+
+---
+
+## Scope change: admin-only authoring platform (2026-10-08)
+
+**Why:** the learner side is built by another team member. **IMPLEMENTED, TESTED (63 backend tests pass; frontend
+`tsc` + `vite build` pass) and VERIFIED by running `docker compose up --build` on a fresh database** (login, three
+seed scenarios published as v1, frontend served).
+
+- Removed: `simulation`, `progress`, `analytics`, tutor AI, student routes/pages, STUDENT role, registration,
+  admin user/attempt/analytics pages. `V1__initial_schema.sql` rewritten (V2 merged); old databases need `down -v`.
+- Added `am.cybersim.authoring`: generator, dependency graph, graph-based validation, test runner (correct +
+  dangerous path), quality score, publishing with immutable versions, restore. See document 17.
+- Frontend: generator page, review/publish tab, SVG graph, versions tab; EN + HY strings.
+- **Not verified:** the frontend was not exercised in a browser; the real Claude call for generation polish was not
+  run (no API key). `@mui/x-charts` is now an unused dependency.

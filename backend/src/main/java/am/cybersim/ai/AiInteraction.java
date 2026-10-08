@@ -12,8 +12,8 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * Audit record of one AI request. Stores the student's question and the answer, never the full prompt
- * (it contains the solution) and never credentials.
+ * Audit record of one AI request. Stores the admin's request text and the answer, never the full prompt
+ * and never credentials.
  */
 @Entity
 @Table(name = "ai_interactions")
@@ -27,9 +27,6 @@ public class AiInteraction {
 
     @Column(name = "user_id", nullable = false)
     private Long userId;
-
-    @Column(name = "simulation_id")
-    private Long simulationId;
 
     @Column(name = "scenario_id")
     private Long scenarioId;
@@ -70,12 +67,11 @@ public class AiInteraction {
     protected AiInteraction() {
     }
 
-    public AiInteraction(Long userId, Long simulationId, Long scenarioId, AiTask interactionType,
+    public AiInteraction(Long userId, Long scenarioId, AiTask interactionType,
                          AiProvider.Type provider, String model, Status status, String requestText,
                          String responseText, int latencyMs, Integer inputTokens, Integer outputTokens,
                          Instant createdAt) {
         this.userId = userId;
-        this.simulationId = simulationId;
         this.scenarioId = scenarioId;
         this.interactionType = interactionType;
         this.provider = provider;
@@ -95,10 +91,6 @@ public class AiInteraction {
 
     public Long getUserId() {
         return userId;
-    }
-
-    public Long getSimulationId() {
-        return simulationId;
     }
 
     public Long getScenarioId() {

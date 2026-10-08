@@ -7,8 +7,6 @@ import java.util.Optional;
 
 public interface ScenarioRepository extends JpaRepository<Scenario, Long> {
 
-    List<Scenario> findByActiveTrueOrderByDifficultyAscTitleAsc();
-
     List<Scenario> findAllByOrderByCreatedAtAsc();
 
     Optional<Scenario> findBySlug(String slug);

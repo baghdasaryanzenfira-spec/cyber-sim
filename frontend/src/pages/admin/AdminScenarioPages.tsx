@@ -1,24 +1,33 @@
 import AddIcon from '@mui/icons-material/Add'
+import ArchiveIcon from '@mui/icons-material/Archive'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
+import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh'
 import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
 import SaveIcon from '@mui/icons-material/Save'
+import UnarchiveIcon from '@mui/icons-material/Unarchive'
 import {
-  Alert, Box, Button, Chip, Grid, IconButton, MenuItem, Paper, Snackbar, Switch, Tab, Table, TableBody, TableCell,
-  TableHead, TableRow, Tabs, TextField, Tooltip, Typography,
+  Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Grid, IconButton,
+  MenuItem, Paper, Snackbar, Tab, Table, TableBody, TableCell, TableHead, TableRow, Tabs, TextField, Tooltip,
+  Typography,
 } from '@mui/material'
 import type { TFunction } from 'i18next'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link as RouterLink, useNavigate, useParams } from 'react-router'
+import { Link as RouterLink, useLocation, useNavigate, useParams } from 'react-router'
 import { apiErrorBody, errorMessage } from '../../api/client'
 import { adminApi } from '../../api/endpoints'
-import type { ActionDef, ApiError, EventDef, ResourceDef, ScenarioDefinition } from '../../api/types'
-import { CategoryChip, DifficultyChip, OutcomeChip, SeverityChip } from '../../components/Chips'
+import type {
+  ActionDef, AdminScenarioDetail, AdminScenarioSummary, AiSource, ApiError, EventDef, ResourceDef, ScenarioDefinition,
+} from '../../api/types'
+import { CategoryChip, DifficultyChip, OutcomeChip, ScenarioStatusChip, SeverityChip } from '../../components/Chips'
 import { ErrorAlert, Loading } from '../../components/Feedback'
 import { PageHeader } from '../../components/Layout'
+import { TranslateButton } from '../../components/TranslateButton'
 import { useLoad } from '../../hooks/useLoad'
+import { GraphPanel, ReviewPanel, VersionsPanel } from './AuthoringPanels'
 import { RowEditor, type FieldSpec } from './RowEditor'
+import { toMeta, type ScenarioMeta } from './scenarioMeta'
 
 // ------------------------------------------------------------------ list
 
@@ -29,22 +38,14 @@ export function AdminScenariosPage() {
   const [error, setError] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<number | null>(null)
+  const [toDelete, setToDelete] = useState<AdminScenarioSummary | null>(null)
 
-  const toggle = async (id: number, active: boolean) => {
-    try {
-      await adminApi.setScenarioActive(id, active)
-      await scenarios.reload()
-    } catch (e) {
-      setError(errorMessage(e))
-    }
-  }
-
-  const vary = async (id: number) => {
+  const run = async (id: number, action: () => Promise<string | null>) => {
     setBusyId(id)
     setError(null)
     try {
-      const result = await adminApi.generateVariation(id)
-      setToast(t('editor.variationCreated', { slug: result.scenario.definition.slug, source: result.source }))
+      const message = await action()
+      if (message) setToast(message)
       await scenarios.reload()
     } catch (e) {
       setError(errorMessage(e))
@@ -53,18 +54,39 @@ export function AdminScenariosPage() {
     }
   }
 
+  const vary = (id: number) => run(id, async () => {
+    const result = await adminApi.generateVariation(id)
+    return t('editor.variationCreated', { slug: result.scenario.definition.slug, source: t(`aiSource.${result.source}`) })
+  })
+  const archive = (s: AdminScenarioSummary) => run(s.id, async () => {
+    await adminApi.archiveScenario(s.id, s.status !== 'ARCHIVED')
+    return null
+  })
+  const remove = (s: AdminScenarioSummary) => {
+    setToDelete(null)
+    return run(s.id, async () => {
+      await adminApi.deleteScenario(s.id)
+      return t('list.deleted', { title: s.title })
+    })
+  }
+
   if (scenarios.loading && !scenarios.data) return <Loading />
   return (
     <>
-      <PageHeader title={t('editor.scenariosTitle')} subtitle={t('editor.scenariosSubtitle')}
-        actions={<Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/admin/scenarios/new')}>{t('editor.newScenario')}</Button>} />
+      <PageHeader title={t('list.title')} subtitle={t('list.subtitle')}
+        actions={<>
+          <Button startIcon={<AddIcon />} onClick={() => navigate('/admin/scenarios/new')}>{t('list.newBlank')}</Button>
+          <Button variant="contained" startIcon={<AutoFixHighIcon />} onClick={() => navigate('/admin/generate')}>{t('nav.generate')}</Button>
+        </>} />
       <ErrorAlert message={error ?? scenarios.error} />
-      <Paper>
+      <Paper sx={{ overflowX: 'auto' }}>
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>{t('editor.titleCol')}</TableCell><TableCell>{t('editor.difficulty')}</TableCell><TableCell>{t('editor.category')}</TableCell><TableCell>{t('editor.version')}</TableCell>
-              <TableCell>{t('editor.actions')}</TableCell><TableCell>{t('editor.events')}</TableCell><TableCell>{t('editor.attempts')}</TableCell><TableCell>{t('editor.active')}</TableCell><TableCell />
+              <TableCell>{t('list.titleCol')}</TableCell><TableCell>{t('editor.difficulty')}</TableCell><TableCell>{t('editor.category')}</TableCell>
+              <TableCell>{t('list.status')}</TableCell><TableCell>{t('list.version')}</TableCell>
+              <TableCell>{t('editor.actions')}</TableCell><TableCell>{t('editor.events')}</TableCell>
+              <TableCell>{t('list.maxScore')}</TableCell><TableCell>{t('list.updated')}</TableCell><TableCell />
             </TableRow>
           </TableHead>
           <TableBody>
@@ -78,24 +100,53 @@ export function AdminScenariosPage() {
                 </TableCell>
                 <TableCell><DifficultyChip difficulty={s.difficulty} /></TableCell>
                 <TableCell><CategoryChip category={s.category} /></TableCell>
-                <TableCell>v{s.version}</TableCell>
+                <TableCell><ScenarioStatusChip status={s.status} /></TableCell>
+                <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                  {s.publishedVersion != null
+                    ? t('list.publishedRev', { version: s.publishedVersion, revision: s.revision })
+                    : t('list.revisionOnly', { revision: s.revision })}
+                </TableCell>
                 <TableCell>{s.actionCount}</TableCell>
                 <TableCell>{s.eventCount}</TableCell>
-                <TableCell>{s.attemptCount}</TableCell>
-                <TableCell><Switch checked={s.active} onChange={(e) => toggle(s.id, e.target.checked)} /></TableCell>
+                <TableCell>{s.maxScore}</TableCell>
+                <TableCell sx={{ whiteSpace: 'nowrap' }}>{new Date(s.updatedAt).toLocaleString()}</TableCell>
                 <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                   <Tooltip title={t('editor.generateVariation')}>
                     <span>
                       <IconButton color="secondary" disabled={busyId != null} onClick={() => vary(s.id)}><AutoAwesomeIcon /></IconButton>
                     </span>
                   </Tooltip>
-                  <IconButton component={RouterLink} to={`/admin/scenarios/${s.id}`}><EditIcon /></IconButton>
+                  <Tooltip title={t('list.openEditor')}>
+                    <IconButton component={RouterLink} to={`/admin/scenarios/${s.id}`}><EditIcon /></IconButton>
+                  </Tooltip>
+                  <Tooltip title={s.status === 'ARCHIVED' ? t('list.restore') : t('list.archive')}>
+                    <span>
+                      <IconButton disabled={busyId != null} onClick={() => archive(s)}>
+                        {s.status === 'ARCHIVED' ? <UnarchiveIcon /> : <ArchiveIcon />}
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                  {s.publishedVersion == null && (
+                    <Tooltip title={t('list.delete')}>
+                      <span>
+                        <IconButton color="error" disabled={busyId != null} onClick={() => setToDelete(s)}><DeleteIcon /></IconButton>
+                      </span>
+                    </Tooltip>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </Paper>
+      <Dialog open={toDelete != null} onClose={() => setToDelete(null)}>
+        <DialogTitle>{t('list.deleteTitle', { title: toDelete?.title })}</DialogTitle>
+        <DialogContent><DialogContentText>{t('list.deleteText')}</DialogContentText></DialogContent>
+        <DialogActions>
+          <Button onClick={() => setToDelete(null)}>{t('common.cancel')}</Button>
+          <Button color="error" variant="contained" onClick={() => toDelete && remove(toDelete)}>{t('list.delete')}</Button>
+        </DialogActions>
+      </Dialog>
       <Snackbar open={toast != null} autoHideDuration={6000} onClose={() => setToast(null)}>
         <Alert severity="success" variant="filled">{toast}</Alert>
       </Snackbar>
@@ -112,7 +163,7 @@ const RESOURCE_TYPES = ['VIRTUAL_MACHINE', 'IAM_USER', 'IAM_ROLE', 'ACCESS_KEY',
 const EMPTY: ScenarioDefinition = {
   slug: '', title: '', summary: '', description: '', difficulty: 'BEGINNER', category: 'INCIDENT_RESPONSE',
   estimatedMinutes: 15, incidentExplanation: '', recommendedSolution: '', hintPenalty: 2, outOfOrderPenalty: 5,
-  active: false, learningObjectives: [''], resources: [], events: [], actions: [], hints: [],
+  learningObjectives: [''], resources: [], events: [], actions: [], hints: [],
 }
 
 function resourceFields(t: TFunction): FieldSpec[] {
@@ -162,33 +213,56 @@ function actionFields(def: ScenarioDefinition, t: TFunction): FieldSpec[] {
 
 type ListName = 'resources' | 'events' | 'actions'
 
+interface EditorLocationState {
+  generated?: boolean
+  aiSource?: AiSource | null
+  saved?: boolean
+}
+
+const TAB_JSON = 5
+const TAB_REVIEW = 6
+const TAB_GRAPH = 7
+const TAB_VERSIONS = 8
+
 export function ScenarioEditorPage() {
   const { t } = useTranslation()
   const { id } = useParams()
-  const isNew = id === 'new'
+  const isNew = id === undefined
+  const scenarioId = Number(id)
   const navigate = useNavigate()
+  const state = useLocation().state as EditorLocationState | null
   const [def, setDef] = useState<ScenarioDefinition>(EMPTY)
-  const [meta, setMeta] = useState<{ version: number; maxScore: number } | null>(null)
+  const [savedJson, setSavedJson] = useState(() => JSON.stringify(EMPTY))
+  const [meta, setMeta] = useState<ScenarioMeta | null>(null)
   const [loading, setLoading] = useState(!isNew)
   const [tab, setTab] = useState(0)
   const [editing, setEditing] = useState<{ list: ListName; index: number; value: Record<string, unknown> } | null>(null)
   const [apiError, setApiError] = useState<ApiError | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
+  const [toast, setToast] = useState<string | null>(state?.saved ? t('editor.saved') : null)
+  const [generated, setGenerated] = useState(state?.generated === true)
   const [jsonText, setJsonText] = useState('')
+
+  /** Make the server's view of the scenario the editor's current and last-saved state. */
+  const apply = (d: AdminScenarioDetail) => {
+    setDef(d.definition)
+    setSavedJson(JSON.stringify(d.definition))
+    setMeta(toMeta(d))
+  }
 
   useEffect(() => {
     if (isNew) return
-    adminApi.scenario(Number(id))
-      .then((d) => { setDef(d.definition); setMeta({ version: d.version, maxScore: d.maxScore }) })
+    adminApi.scenario(scenarioId)
+      .then((d) => { setDef(d.definition); setSavedJson(JSON.stringify(d.definition)); setMeta(toMeta(d)) })
       .catch((e) => setError(errorMessage(e)))
       .finally(() => setLoading(false))
-  }, [id, isNew])
+  }, [scenarioId, isNew])
 
-  useEffect(() => { if (tab === 5) setJsonText(JSON.stringify(def, null, 2)) }, [tab, def])
+  useEffect(() => { if (tab === TAB_JSON) setJsonText(JSON.stringify(def, null, 2)) }, [tab, def])
 
   if (loading) return <Loading />
 
+  const dirty = !isNew && JSON.stringify(def) !== savedJson
   const set = <K extends keyof ScenarioDefinition>(key: K, value: ScenarioDefinition[K]) => setDef({ ...def, [key]: value })
   const maxScore = def.actions.filter((a) => a.outcome === 'EXPECTED').reduce((s, a) => s + a.points, 0)
 
@@ -196,16 +270,27 @@ export function ScenarioEditorPage() {
     setApiError(null)
     setError(null)
     try {
-      const result = isNew ? await adminApi.createScenario(def) : await adminApi.updateScenario(Number(id), def)
-      setMeta({ version: result.version, maxScore: result.maxScore })
-      setSaved(true)
-      if (isNew) navigate(`/admin/scenarios/${result.id}`, { replace: true })
+      const wasPublished = meta?.status === 'PUBLISHED'
+      const result = isNew ? await adminApi.createScenario(def) : await adminApi.updateScenario(scenarioId, def)
+      if (isNew) {
+        navigate(`/admin/scenarios/${result.id}`, { replace: true, state: { saved: true } })
+        return
+      }
+      apply(result)
+      setToast(wasPublished ? t('editor.savedAsDraft') : t('editor.saved'))
     } catch (e) {
       const body = apiErrorBody(e)
       if (body?.fieldErrors?.length) setApiError(body)
       else setError(errorMessage(e))
     }
   }
+
+  const onPublished = (d: AdminScenarioDetail) => setMeta(toMeta(d))
+  const onRestored = (d: AdminScenarioDetail) => {
+    apply(d)
+    setToast(t('versions.restored'))
+  }
+
 
   const listFields: Record<ListName, FieldSpec[]> = { resources: resourceFields(t), events: eventFields(def, t), actions: actionFields(def, t) }
   const newRow: Record<ListName, () => Record<string, unknown>> = {
@@ -238,11 +323,27 @@ export function ScenarioEditorPage() {
   return (
     <>
       <PageHeader title={isNew ? t('editor.newScenario') : t('editor.editTitle', { title: def.title })}
-        subtitle={meta ? t('editor.versionMax', { version: meta.version, max: maxScore }) : t('editor.maxScore', { max: maxScore })}
+        subtitle={t('editor.maxScore', { max: maxScore })}
         actions={<>
           <Button component={RouterLink} to="/admin/scenarios">{t('common.back')}</Button>
           <Button variant="contained" startIcon={<SaveIcon />} onClick={save}>{t('common.save')}</Button>
         </>} />
+      {meta && (
+        <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap', mt: -1.5 }}>
+          <ScenarioStatusChip status={meta.status} />
+          <Chip size="small" variant="outlined" label={t('editor.revision', { revision: meta.revision })} />
+          {meta.publishedVersion != null && (
+            <Chip size="small" variant="outlined" color="success" label={t('editor.publishedVersion', { version: meta.publishedVersion })} />
+          )}
+          {dirty && <Chip size="small" color="warning" label={t('editor.unsaved')} />}
+        </Box>
+      )}
+      {generated && (
+        <Alert severity={state?.aiSource === 'FALLBACK' ? 'warning' : 'success'} onClose={() => setGenerated(false)} sx={{ mb: 2 }}>
+          {t('editor.generatedNote')}
+          {state?.aiSource && <Box component="span" sx={{ display: 'block' }}>{t(`editor.generatedAi.${state.aiSource}`)}</Box>}
+        </Alert>
+      )}
       <ErrorAlert message={error} />
       {apiError && (
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -260,6 +361,9 @@ export function ScenarioEditorPage() {
           <Tab label={t('editor.tabActions', { count: def.actions.length })} />
           <Tab label={t('editor.tabHints', { count: def.hints.length })} />
           <Tab label={t('editor.tabJson')} />
+          {!isNew && <Tab label={t('editor.tabReview')} />}
+          {!isNew && <Tab label={t('editor.tabGraph')} />}
+          {!isNew && <Tab label={t('editor.tabVersions')} />}
         </Tabs>
       </Paper>
 
@@ -292,7 +396,6 @@ export function ScenarioEditorPage() {
             </Grid>
             <Grid size={{ xs: 12, md: 6 }}><TextField fullWidth multiline minRows={5} label={t('editor.incidentExplanation')} value={def.incidentExplanation} onChange={(e) => set('incidentExplanation', e.target.value)} /></Grid>
             <Grid size={{ xs: 12, md: 6 }}><TextField fullWidth multiline minRows={5} label={t('editor.recommendedSolution')} value={def.recommendedSolution} onChange={(e) => set('recommendedSolution', e.target.value)} /></Grid>
-            <Grid size={12}><Box sx={{ display: 'flex', alignItems: 'center' }}><Switch checked={def.active} onChange={(e) => set('active', e.target.checked)} /> {t('editor.activeSwitch')}</Box></Grid>
           </Grid>
         </Paper>
       )}
@@ -324,7 +427,7 @@ export function ScenarioEditorPage() {
                 <TableRow key={i}>
                   <TableCell>+{e.offsetSeconds}s</TableCell><TableCell>{e.type}</TableCell><TableCell><SeverityChip severity={e.severity} /></TableCell>
                   <TableCell>{e.source}</TableCell>
-                  <TableCell sx={{ maxWidth: 380, fontSize: 12 }}>{e.message}</TableCell>
+                  <TableCell sx={{ maxWidth: 380, fontSize: 12 }}>{e.message}<TranslateButton text={e.message} /></TableCell>
                   <TableCell>{e.evidence && <Chip size="small" color="success" label={t('editor.evidenceChip')} />}</TableCell>
                   <TableCell>{e.revealedByActionKey ?? t('editor.start')}</TableCell>
                   {rowActions('events', i)}
@@ -368,7 +471,7 @@ export function ScenarioEditorPage() {
         </Paper>
       )}
 
-      {tab === 5 && (
+      {tab === TAB_JSON && (
         <Paper sx={{ p: 2 }}>
           <TextField fullWidth multiline minRows={20} value={jsonText} onChange={(e) => setJsonText(e.target.value)}
             slotProps={{ htmlInput: { style: { fontFamily: 'monospace', fontSize: 12 } } }} />
@@ -378,14 +481,22 @@ export function ScenarioEditorPage() {
         </Paper>
       )}
 
+      {!isNew && meta && tab === TAB_REVIEW && (
+        <ReviewPanel id={scenarioId} def={def} meta={meta} dirty={dirty} onPublished={onPublished} />
+      )}
+      {!isNew && meta && tab === TAB_GRAPH && <GraphPanel id={scenarioId} revision={meta.revision} dirty={dirty} />}
+      {!isNew && meta && tab === TAB_VERSIONS && (
+        <VersionsPanel id={scenarioId} refreshKey={meta.publishedVersion ?? 0} onRestored={onRestored} />
+      )}
+
       {editing && (
         <RowEditor open title={editing.index < rows(editing.list).length ? t('editor.edit') : t('editor.add')}
           fields={listFields[editing.list]}
           value={editing.value}
           onClose={() => setEditing(null)} onSave={saveRow} />
       )}
-      <Snackbar open={saved} autoHideDuration={3000} onClose={() => setSaved(false)}>
-        <Alert severity="success" variant="filled">{t('editor.saved')}</Alert>
+      <Snackbar open={toast != null} autoHideDuration={4000} onClose={() => setToast(null)}>
+        <Alert severity="success" variant="filled">{toast}</Alert>
       </Snackbar>
     </>
   )

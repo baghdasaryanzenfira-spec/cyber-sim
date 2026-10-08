@@ -1,8 +1,8 @@
 package am.cybersim.scoring;
 
-import am.cybersim.scenario.ScenarioAction;
 import am.cybersim.scenario.ScenarioEnums.ActionCategory;
 import am.cybersim.scenario.ScenarioEnums.ActionOutcome;
+import am.cybersim.scenario.dto.ScenarioDefinition.ActionDef;
 import am.cybersim.scoring.ScoreResult.ItemKind;
 import am.cybersim.scoring.ScoreResult.MissedAction;
 import am.cybersim.scoring.ScoreResult.ScoreItem;
@@ -16,9 +16,9 @@ import java.util.Set;
 /**
  * Deterministic scoring engine (ADR-6) — AI is never involved in grading.
  *
- * <p>Inputs: the scenario's action catalogue and scoring configuration, the actions the student performed
- * (in order) and the number of hints used. Output: {@link ScoreResult}. The same input always gives the
- * same result, which makes grades reproducible and explainable to students.
+ * <p>Inputs: the scenario's action catalogue and scoring configuration, the actions performed
+ * (in order) and the number of hints used. Within the authoring platform it is used by the scenario test runner. Output: {@link ScoreResult}. The same input always gives the
+ * same result, which makes grades reproducible and explainable.
  *
  * <p>Rules (configurable per scenario/action, see 08-simulation-engine §5):
  * <ul>
@@ -41,18 +41,18 @@ public class ScoringEngine {
      * Points for a single action at the moment it is performed. Used by the simulation engine so that the
      * points shown in the action history and the final score always agree.
      */
-    public int pointsFor(ScenarioAction action, boolean outOfOrder, boolean duplicate, int outOfOrderPenalty) {
+    public int pointsFor(ActionDef action, boolean outOfOrder, boolean duplicate, int outOfOrderPenalty) {
         if (duplicate) {
             return 0;
         }
-        return switch (action.getOutcome()) {
-            case EXPECTED -> outOfOrder ? Math.max(0, action.getPoints() - outOfOrderPenalty) : action.getPoints();
+        return switch (action.outcome()) {
+            case EXPECTED -> outOfOrder ? Math.max(0, action.points() - outOfOrderPenalty) : action.points();
             case NEUTRAL -> 0;
-            case HARMFUL -> action.getPoints();
+            case HARMFUL -> action.points();
         };
     }
 
-    public ScoreResult score(List<ScenarioAction> catalogue, List<PerformedAction> performed, int hintsUsed,
+    public ScoreResult score(List<ActionDef> catalogue, List<PerformedAction> performed, int hintsUsed,
                              int hintPenalty) {
         List<ScoreItem> items = new ArrayList<>();
         Set<String> performedKeys = new HashSet<>();
@@ -90,15 +90,15 @@ public class ScoringEngine {
         }
 
         List<MissedAction> missed = catalogue.stream()
-                .filter(a -> a.getOutcome() == ActionOutcome.EXPECTED)
-                .filter(a -> !performedKeys.contains(a.getActionKey()))
-                .map(a -> new MissedAction(a.getActionKey(), a.getLabel(), a.getCategory(), a.getPoints(),
-                        a.getExplanation()))
+                .filter(a -> a.outcome() == ActionOutcome.EXPECTED)
+                .filter(a -> !performedKeys.contains(a.key()))
+                .map(a -> new MissedAction(a.key(), a.label(), a.category(), a.points(),
+                        a.explanation()))
                 .toList();
 
         int max = catalogue.stream()
-                .filter(a -> a.getOutcome() == ActionOutcome.EXPECTED)
-                .mapToInt(ScenarioAction::getPoints)
+                .filter(a -> a.outcome() == ActionOutcome.EXPECTED)
+                .mapToInt(ActionDef::points)
                 .sum();
         int percent = max <= 0 ? 0 : Math.clamp(Math.round(raw * 100f / max), 0, 100);
         return new ScoreResult(raw, max, percent, hintPenaltyTotal, items, missed);

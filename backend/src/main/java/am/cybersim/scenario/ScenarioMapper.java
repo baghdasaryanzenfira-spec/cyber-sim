@@ -6,8 +6,6 @@ import am.cybersim.scenario.dto.ScenarioDefinition.EventDef;
 import am.cybersim.scenario.dto.ScenarioDefinition.ResourceDef;
 import am.cybersim.scenario.dto.ScenarioDtos.AdminScenarioDetail;
 import am.cybersim.scenario.dto.ScenarioDtos.AdminScenarioSummary;
-import am.cybersim.scenario.dto.ScenarioDtos.ScenarioBriefing;
-import am.cybersim.scenario.dto.ScenarioDtos.ScenarioSummary;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -16,27 +14,15 @@ import java.util.List;
 @Component
 public class ScenarioMapper {
 
-    public ScenarioSummary toSummary(Scenario s) {
-        return new ScenarioSummary(s.getId(), s.getSlug(), s.getTitle(), s.getSummary(), s.getDifficulty(),
-                s.getCategory(), s.getEstimatedMinutes());
-    }
-
-    public ScenarioBriefing toBriefing(Scenario s) {
-        return new ScenarioBriefing(s.getId(), s.getSlug(), s.getTitle(), s.getSummary(), s.getDescription(),
-                s.getDifficulty(), s.getCategory(), s.getEstimatedMinutes(),
-                s.getObjectives().stream().map(ScenarioObjective::getText).toList(),
-                s.getResources().size());
-    }
-
-    public AdminScenarioSummary toAdminSummary(Scenario s, long attemptCount) {
+    public AdminScenarioSummary toAdminSummary(Scenario s) {
         return new AdminScenarioSummary(s.getId(), s.getSlug(), s.getTitle(), s.getDifficulty(), s.getCategory(),
-                s.isActive(), s.getVersion(), s.getSourceScenarioId(), s.getActions().size(), s.getEvents().size(),
-                s.maxScore(), attemptCount, s.getUpdatedAt());
+                s.getStatus(), s.getRevision(), s.getPublishedVersion(), s.getSourceScenarioId(),
+                s.getActions().size(), s.getEvents().size(), s.maxScore(), s.getUpdatedAt());
     }
 
     public AdminScenarioDetail toAdminDetail(Scenario s) {
-        return new AdminScenarioDetail(s.getId(), s.getVersion(), s.isActive(), s.getSourceScenarioId(),
-                s.getCreatedAt(), s.getUpdatedAt(), s.maxScore(), toDefinition(s));
+        return new AdminScenarioDetail(s.getId(), s.getStatus(), s.getRevision(), s.getPublishedVersion(),
+                s.getSourceScenarioId(), s.getCreatedAt(), s.getUpdatedAt(), s.maxScore(), toDefinition(s));
     }
 
     public ScenarioDefinition toDefinition(Scenario s) {
@@ -56,7 +42,7 @@ public class ScenarioMapper {
                 .toList();
         return new ScenarioDefinition(s.getSlug(), s.getTitle(), s.getSummary(), s.getDescription(),
                 s.getDifficulty(), s.getCategory(), s.getEstimatedMinutes(), s.getIncidentExplanation(),
-                s.getRecommendedSolution(), s.getHintPenalty(), s.getOutOfOrderPenalty(), s.isActive(),
+                s.getRecommendedSolution(), s.getHintPenalty(), s.getOutOfOrderPenalty(),
                 s.getObjectives().stream().map(ScenarioObjective::getText).toList(),
                 resources, events, actions,
                 s.getHints().stream().map(ScenarioHint::getText).toList());

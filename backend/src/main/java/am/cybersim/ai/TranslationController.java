@@ -13,8 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Translates a single piece of on-screen text on demand. Available to any signed-in user, because the reader who
- * needs a log line translated is the student, not the administrator.
+ * Translates a single piece of on-screen text on demand (e.g. a log line in the scenario editor).
  */
 @RestController
 @RequestMapping("/api/ai")

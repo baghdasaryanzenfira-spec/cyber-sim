@@ -10,7 +10,6 @@
   "recommendedSolution": "1. Inspect the bucket policy change history and the storage access logs.\n2. Classify the incident as data exposure through a misconfigured (public) bucket and confirm that customer data was downloaded by an unknown party.\n3. Contain: re-enable Block Public Access and remove the public policy on acme-customer-exports (do NOT delete the bucket — it is evidence and business data).\n4. Recover: give the partner a time-limited pre-signed URL instead; start the data-breach notification process with the DPO/legal team.\n5. Harden: enable account-level Block Public Access with an exception list, and restrict s3:PutBucketPolicy for developers.\nLeave acme-website-assets public — it must stay public for the website.",
   "hintPenalty": 3,
   "outOfOrderPenalty": 5,
-  "active": true,
   "learningObjectives": [
     "Understand how bucket policies and public-access blocks control exposure of cloud storage",
     "Use audit trail and storage access logs to determine who changed what and who accessed the data",

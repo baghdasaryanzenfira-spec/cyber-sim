@@ -28,7 +28,7 @@ import java.util.function.Function;
  *
  * <p>Pipeline: original definition → AI → JSON parse → <b>structural equivalence check</b> (same keys, phases,
  * outcomes, points, evidence markers, references as the original) → standard {@link ScenarioDefinitionValidator}
- * → stored as an <b>inactive</b> draft with a link to the original. An administrator must review and activate it.
+ * → stored as a <b>draft</b> with a link to the original. An administrator must review and publish it.
  * Because scoring-relevant structure cannot change, the deterministic engine and scoring stay valid.
  */
 @Service
@@ -69,7 +69,7 @@ public class ScenarioVariationService {
 
         Function<String, ScenarioDefinition> validate = json -> {
             ScenarioDefinition candidate = outputValidator.parseScenarioDefinition(json);
-            ScenarioDefinition normalized = withSlugAndInactive(candidate, source.newSlug());
+            ScenarioDefinition normalized = withSlug(candidate, source.newSlug());
             requireSameStructure(source.definition(), normalized);
             definitionValidator.validate(normalized);
             return normalized;
@@ -78,7 +78,7 @@ public class ScenarioVariationService {
         AiResult<ScenarioDefinition> result;
         try {
             result = gateway.execute(new AiPayload.Variation(source.definition(), source.newSlug()),
-                    new AiGateway.CallContext(adminId, null, scenarioId, "Variation of scenario " + scenarioId),
+                    new AiGateway.CallContext(adminId, scenarioId, "Variation of scenario " + scenarioId),
                     validate);
         } catch (ApiException | AiProviderException e) {
             throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, "INVALID_VARIATION",
@@ -96,7 +96,7 @@ public class ScenarioVariationService {
      * Rejects any variation that changes scoring-relevant structure.
      * @throws AiProviderException so that the gateway treats the AI output as invalid and falls back
      */
-    static void requireSameStructure(ScenarioDefinition original, ScenarioDefinition variant) {
+    public static void requireSameStructure(ScenarioDefinition original, ScenarioDefinition variant) {
         check(original.difficulty() == variant.difficulty() && original.category() == variant.category()
                 && original.hintPenalty() == variant.hintPenalty()
                 && original.outOfOrderPenalty() == variant.outOfOrderPenalty(), "scenario settings changed");
@@ -126,10 +126,10 @@ public class ScenarioVariationService {
         }
     }
 
-    private static ScenarioDefinition withSlugAndInactive(ScenarioDefinition d, String slug) {
+    private static ScenarioDefinition withSlug(ScenarioDefinition d, String slug) {
         return new ScenarioDefinition(slug, d.title(), d.summary(), d.description(), d.difficulty(), d.category(),
                 d.estimatedMinutes(), d.incidentExplanation(), d.recommendedSolution(), d.hintPenalty(),
-                d.outOfOrderPenalty(), false, d.learningObjectives(), d.resources(), d.events(), d.actions(),
+                d.outOfOrderPenalty(), d.learningObjectives(), d.resources(), d.events(), d.actions(),
                 d.hints() == null ? List.of() : d.hints());
     }
 

@@ -1,18 +1,10 @@
 package am.cybersim.ai;
 
 import am.cybersim.ai.AiGateway.AiResult;
-import am.cybersim.ai.context.SimulationSnapshot;
 import am.cybersim.ai.dto.AiDtos.AiSource;
-import am.cybersim.ai.dto.AiFeedback;
 import am.cybersim.config.AppProperties;
-import am.cybersim.scoring.ScoringEngine;
-import am.cybersim.simulation.Simulation;
-import am.cybersim.simulation.SimulationEngine;
-import am.cybersim.simulation.SimulationMapper;
-import am.cybersim.simulation.SimulationSnapshotFactory;
-import am.cybersim.support.TestScenarios;
-import am.cybersim.user.Role;
-import am.cybersim.user.User;
+import am.cybersim.scenario.dto.ScenarioDefinition;
+import am.cybersim.support.TestDefinitions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -23,7 +15,6 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -32,8 +23,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Reliability tests of the AI gateway (requirement §9): any provider failure, timeout, or invalid output must
- * result in a validated fallback answer — never in an exception for the student.
+ * Reliability tests of the AI gateway (requirement 9): any provider failure, timeout, or invalid output must
+ * result in a validated fallback answer - never in an exception for the administrator.
  */
 class AiGatewayTest {
 
@@ -45,15 +36,11 @@ class AiGatewayTest {
     AiOutputValidator validator = new AiOutputValidator(objectMapper);
     AiInteractionRepository repository = mock(AiInteractionRepository.class);
     AiProvider claude = mock(AiProvider.class);
-    SimulationSnapshot snapshot;
+    ScenarioDefinition draft = TestDefinitions.small();
 
     @BeforeEach
     void setUp() {
         when(claude.type()).thenReturn(AiProvider.Type.CLAUDE);
-        User student = new User("s@test.local", "Student", "hash", Role.STUDENT, NOW);
-        Simulation simulation = new Simulation(student, TestScenarios.scenario(), NOW);
-        new SimulationEngine(new ScoringEngine()).start(simulation, NOW);
-        snapshot = new SimulationSnapshotFactory(new SimulationMapper()).create(simulation);
     }
 
     AiGateway gateway(AiProvider primary, int timeoutSeconds) {
@@ -63,56 +50,49 @@ class AiGatewayTest {
     }
 
     AiGateway.CallContext ctx() {
-        return new AiGateway.CallContext(1L, 2L, 3L, "question");
+        return new AiGateway.CallContext(1L, 2L, "generate");
+    }
+
+    AiPayload generation() {
+        return new AiPayload.Generation(draft, "make it about a web shop");
     }
 
     @Test
-    void mockAsPrimaryReturnsMockSource() {
-        AiResult<String> result = gateway(mockProvider, 5).execute(new AiPayload.Hint(snapshot, 1), ctx(),
-                text -> validator.validateHint(text, snapshot));
+    void mockAsPrimaryReturnsMockSourceAndKeepsTheDraft() {
+        AiResult<ScenarioDefinition> result = gateway(mockProvider, 5).execute(generation(), ctx(),
+                validator::parseScenarioDefinition);
         assertThat(result.source()).isEqualTo(AiSource.MOCK);
-        assertThat(result.value()).isNotBlank();
+        assertThat(result.value()).isEqualTo(draft);
         assertStatusLogged(AiInteraction.Status.SUCCESS, AiProvider.Type.MOCK);
     }
 
     @Test
     void validRealAnswerIsUsed() {
-        when(claude.complete(any())).thenReturn(new AiProvider.AiResponse("Look at the authentication log.", "claude-opus-5-5", 900, 20));
-        AiResult<String> result = gateway(claude, 5).execute(new AiPayload.Hint(snapshot, 1), ctx(),
-                text -> validator.validateHint(text, snapshot));
+        when(claude.complete(any())).thenReturn(new AiProvider.AiResponse(objectMapper.writeValueAsString(draft),
+                "claude-opus-5-5", 900, 20));
+        AiResult<ScenarioDefinition> result = gateway(claude, 5).execute(generation(), ctx(),
+                validator::parseScenarioDefinition);
         assertThat(result.source()).isEqualTo(AiSource.AI);
-        assertThat(result.value()).isEqualTo("Look at the authentication log.");
         assertStatusLogged(AiInteraction.Status.SUCCESS, AiProvider.Type.CLAUDE);
     }
 
     @Test
     void providerExceptionFallsBackToMock() {
         when(claude.complete(any())).thenThrow(new RuntimeException("connection refused"));
-        AiResult<String> result = gateway(claude, 5).execute(new AiPayload.Question(snapshot, "What is MFA?"), ctx(),
-                validator::validateAnswer);
+        AiResult<ScenarioDefinition> result = gateway(claude, 5).execute(generation(), ctx(),
+                validator::parseScenarioDefinition);
         assertThat(result.source()).isEqualTo(AiSource.FALLBACK);
-        assertThat(result.value()).contains("factor");
+        assertThat(result.value()).isEqualTo(draft);
         assertStatusLogged(AiInteraction.Status.FALLBACK, AiProvider.Type.MOCK);
     }
 
     @Test
-    void invalidJsonFeedbackFallsBackToMock() {
-        when(claude.complete(any())).thenReturn(new AiProvider.AiResponse("Sure! Here is your feedback: great job", "m", 1, 1));
-        var score = new ScoringEngine().score(TestScenarios.scenario().getActions(), List.of(), 0, 2);
-        AiResult<AiFeedback> result = gateway(claude, 5).execute(new AiPayload.Feedback(snapshot, score), ctx(),
-                validator::validateFeedback);
+    void invalidJsonFallsBackToMock() {
+        when(claude.complete(any())).thenReturn(new AiProvider.AiResponse("Sure! Here is your scenario", "m", 1, 1));
+        AiResult<ScenarioDefinition> result = gateway(claude, 5).execute(generation(), ctx(),
+                validator::parseScenarioDefinition);
         assertThat(result.source()).isEqualTo(AiSource.FALLBACK);
-        assertThat(result.value().summary()).contains("0/100");
-        assertThat(result.value().improvements()).isNotEmpty();
-    }
-
-    @Test
-    void hintThatRevealsTheSolutionIsRejected() {
-        when(claude.complete(any())).thenReturn(new AiProvider.AiResponse(
-                "Do Label inspect-log, then Label identify-vm, then Label isolate-vm.", "m", 1, 1));
-        AiResult<String> result = gateway(claude, 5).execute(new AiPayload.Hint(snapshot, 1), ctx(),
-                text -> validator.validateHint(text, snapshot));
-        assertThat(result.source()).isEqualTo(AiSource.FALLBACK);
+        assertThat(result.value()).isEqualTo(draft);
     }
 
     @Test
@@ -122,8 +102,8 @@ class AiGatewayTest {
             return new AiProvider.AiResponse("late", "m", 1, 1);
         });
         long start = System.nanoTime();
-        AiResult<String> result = gateway(claude, 1).execute(new AiPayload.Hint(snapshot, 1), ctx(),
-                text -> validator.validateHint(text, snapshot));
+        AiResult<ScenarioDefinition> result = gateway(claude, 1).execute(generation(), ctx(),
+                validator::parseScenarioDefinition);
         assertThat(result.source()).isEqualTo(AiSource.FALLBACK);
         assertThat(Duration.ofNanos(System.nanoTime() - start)).isLessThan(Duration.ofSeconds(6));
     }
@@ -134,5 +114,6 @@ class AiGatewayTest {
         assertThat(captor.getValue().getStatus()).isEqualTo(status);
         assertThat(captor.getValue().getProvider()).isEqualTo(provider);
         assertThat(captor.getValue().getUserId()).isEqualTo(1L);
+        assertThat(captor.getValue().getInteractionType()).isEqualTo(AiTask.GENERATION);
     }
 }

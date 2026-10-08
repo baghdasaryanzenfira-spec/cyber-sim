@@ -23,13 +23,15 @@ import java.util.Map;
 /**
  * The complete, self-contained description of a scenario (ADR-5).
  *
- * <p>The same document is used for three entry points, all protected by the same validation
+ * <p>The same document is used for four entry points, all protected by the same validation
  * (Bean Validation here + cross-reference rules in {@code ScenarioDefinitionValidator}):
  * <ol>
- *   <li>seed files in {@code resources/scenarios/*.json},</li>
+ *   <li>seed/template files in {@code resources/scenarios/*.json},</li>
+ *   <li>the scenario generator ({@code POST /api/admin/scenarios/generate}),</li>
  *   <li>the admin scenario editor ({@code POST/PUT /api/admin/scenarios}),</li>
  *   <li>AI-generated scenario variations.</li>
  * </ol>
+ * Lifecycle state (draft / published) is not part of the document; it lives on the scenario entity.
  */
 public record ScenarioDefinition(
         @NotBlank @Pattern(regexp = KEY_PATTERN, message = "must be lower-case letters, digits and dashes")
@@ -44,7 +46,6 @@ public record ScenarioDefinition(
         @NotBlank @Size(max = 10_000) String recommendedSolution,
         @Min(0) @Max(50) int hintPenalty,
         @Min(0) @Max(50) int outOfOrderPenalty,
-        boolean active,
         @NotEmpty @Size(max = 20) List<@NotBlank @Size(max = 500) String> learningObjectives,
         @NotEmpty @Size(max = 50) List<@Valid @NotNull ResourceDef> resources,
         @NotEmpty @Size(max = 200) List<@Valid @NotNull EventDef> events,

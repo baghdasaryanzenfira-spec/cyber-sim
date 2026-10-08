@@ -1,3 +1,5 @@
+import { Alert } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 import { Navigate, Outlet, useLocation } from 'react-router'
 import { useAuth } from './AuthContext'
 import { Loading } from '../components/Feedback'
@@ -14,6 +16,7 @@ export function RequireAuth() {
 /** Requires the ADMIN role. This is only UX — the backend enforces the same rule on /api/admin/**. */
 export function RequireAdmin() {
   const { user } = useAuth()
-  if (user?.role !== 'ADMIN') return <Navigate to="/" replace />
+  const { t } = useTranslation()
+  if (user?.role !== 'ADMIN') return <Alert severity="error">{t('common.forbidden')}</Alert>
   return <Outlet />
 }

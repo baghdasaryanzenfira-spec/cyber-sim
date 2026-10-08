@@ -1,6 +1,6 @@
 // TypeScript mirror of the backend DTOs (am.cybersim.*.dto). Keep in sync with the Java records.
 
-export type Role = 'STUDENT' | 'ADMIN'
+export type Role = 'ADMIN'
 export type Difficulty = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED'
 export type Category = 'AUTHENTICATION' | 'IAM' | 'NETWORK' | 'STORAGE' | 'LOGGING' | 'INCIDENT_RESPONSE'
 export type ResourceType =
@@ -10,8 +10,9 @@ export type Severity = 'INFO' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
 export type ActionPhase = 'INVESTIGATION' | 'RESPONSE'
 export type ActionCategory = 'INSPECT' | 'IDENTIFY' | 'CONTAIN' | 'ERADICATE' | 'RECOVER' | 'HARDEN'
 export type ActionOutcome = 'EXPECTED' | 'NEUTRAL' | 'HARMFUL'
-export type SimulationStatus = 'CREATED' | 'RUNNING' | 'INVESTIGATING' | 'RESPONDING' | 'COMPLETED' | 'ABANDONED'
 export type AiSource = 'AI' | 'MOCK' | 'FALLBACK'
+export type ScenarioStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
+export type ScenarioType = 'SSH_BRUTE_FORCE' | 'COMPROMISED_CREDENTIALS' | 'PUBLIC_STORAGE_BUCKET'
 
 export interface ApiError {
   timestamp: string
@@ -40,221 +41,7 @@ export interface AuthResponse {
   user: User
 }
 
-export interface ScenarioSummary {
-  id: number
-  slug: string
-  title: string
-  summary: string
-  difficulty: Difficulty
-  category: Category
-  estimatedMinutes: number
-}
-
-export interface ScenarioBriefing extends ScenarioSummary {
-  description: string
-  learningObjectives: string[]
-  resourceCount: number
-}
-
-export interface ResourceView {
-  key: string
-  type: ResourceType
-  name: string
-  region: string
-  status: string
-  properties: Record<string, unknown>
-}
-
-export interface EventView {
-  id: number
-  eventKey?: string
-  occurredAt: string
-  type: EventType
-  source: string
-  severity: Severity
-  resourceKey?: string
-  message: string
-  details: Record<string, unknown>
-  flagged: boolean
-  evidence?: boolean
-}
-
-export interface ActionOption {
-  key: string
-  label: string
-  description: string
-  phase: ActionPhase
-  category: ActionCategory
-  targetResourceKey?: string
-  performed: boolean
-}
-
-export interface PerformedAction {
-  sequence: number
-  actionKey: string
-  label: string
-  phase: ActionPhase
-  category: ActionCategory
-  targetResourceKey?: string
-  result: 'APPLIED' | 'DUPLICATE'
-  resultMessage: string
-  performedAt: string
-  outcome?: ActionOutcome
-  points?: number
-  outOfOrder?: boolean
-}
-
-export interface SimulationDetail {
-  id: number
-  status: SimulationStatus
-  scenario: ScenarioBriefing & { hintPenalty: number }
-  hintsUsed: number
-  createdAt: string
-  startedAt?: string
-  incidentStartedAt?: string
-  completedAt?: string
-  resources: ResourceView[]
-  events: EventView[]
-  availableActions: ActionOption[]
-  performedActions: PerformedAction[]
-}
-
-export interface ActionResult {
-  action: PerformedAction
-  revealedEvents: number
-  simulation: SimulationDetail
-}
-
-export interface SimulationSummary {
-  id: number
-  scenarioId: number
-  scenarioTitle: string
-  difficulty: Difficulty
-  category: Category
-  status: SimulationStatus
-  scorePercent?: number
-  actionCount: number
-  hintsUsed: number
-  createdAt: string
-  startedAt?: string
-  completedAt?: string
-}
-
-export type ScoreItemKind = 'EXPECTED' | 'OUT_OF_ORDER' | 'NEUTRAL' | 'HARMFUL' | 'DUPLICATE' | 'HINT_PENALTY'
-
-export interface ScoreItem {
-  actionKey?: string
-  label: string
-  category?: ActionCategory
-  kind: ScoreItemKind
-  points: number
-  note: string
-}
-
-export interface MissedAction {
-  actionKey: string
-  label: string
-  category: ActionCategory
-  points: number
-  explanation: string
-}
-
-export interface AiFeedback {
-  summary: string
-  strengths: string[]
-  improvements: string[]
-  missedEvidence: string[]
-  orderIssues: string[]
-  unnecessaryActions: string[]
-  nextSteps: string[]
-}
-
-export interface EvidenceSummary {
-  total: number
-  found: number
-  falseFlags: number
-  items: { eventKey: string; message: string; note: string; revealed: boolean; flagged: boolean }[]
-}
-
-export interface SimulationResult {
-  simulationId: number
-  scenarioId: number
-  scenarioTitle: string
-  status: SimulationStatus
-  scorePercent: number
-  rawScore: number
-  maxScore: number
-  hintsUsed: number
-  hintPenaltyTotal: number
-  breakdown: ScoreItem[]
-  missedActions: MissedAction[]
-  evidence: EvidenceSummary
-  performedActions: PerformedAction[]
-  incidentExplanation: string
-  recommendedSolution: string
-  feedback?: AiFeedback
-  feedbackSource?: AiSource
-  durationSeconds?: number
-  completedAt?: string
-}
-
-export interface AssistantReply {
-  type: 'HINT' | 'QUESTION'
-  text: string
-  source: AiSource
-  hintsUsed: number
-  createdAt: string
-}
-
-export interface AssistantMessage {
-  id: number
-  type: 'HINT' | 'QUESTION'
-  question?: string
-  answer: string
-  source: AiSource
-  createdAt: string
-}
-
-export interface CategoryStat {
-  category: Category
-  attempts: number
-  completed: number
-  averageScore?: number
-  bestScore?: number
-}
-
-export interface ProgressView {
-  totals: {
-    attempts: number
-    completed: number
-    abandoned: number
-    averageScore?: number
-    bestScore?: number
-    hintsUsed: number
-    trainingMinutes: number
-  }
-  categories: CategoryStat[]
-  scenarios: {
-    scenarioId: number
-    title: string
-    difficulty: Difficulty
-    category: Category
-    attempts: number
-    bestScore?: number
-    lastStatus?: SimulationStatus
-    activeSimulationId?: number
-  }[]
-  scoreHistory: { simulationId: number; scenarioTitle: string; scorePercent: number; completedAt: string }[]
-  recentAttempts: SimulationSummary[]
-}
-
-export interface Recommendation {
-  topic: string
-  category: Category
-  reason: string
-}
-
-// ---------------------------------------------------------------- admin
+// ---------------------------------------------------------------- scenario definition
 
 export interface ResourceDef {
   key: string
@@ -306,7 +93,6 @@ export interface ScenarioDefinition {
   recommendedSolution: string
   hintPenalty: number
   outOfOrderPenalty: number
-  active: boolean
   learningObjectives: string[]
   resources: ResourceDef[]
   events: EventDef[]
@@ -314,6 +100,7 @@ export interface ScenarioDefinition {
   hints: string[]
 }
 
+// ---------------------------------------------------------------- authoring
 
 export interface AdminScenarioSummary {
   id: number
@@ -321,104 +108,169 @@ export interface AdminScenarioSummary {
   title: string
   difficulty: Difficulty
   category: Category
-  active: boolean
-  version: number
-  sourceScenarioId?: number
+  status: ScenarioStatus
+  revision: number
+  publishedVersion?: number | null
+  sourceScenarioId?: number | null
   actionCount: number
   eventCount: number
   maxScore: number
-  attemptCount: number
   updatedAt: string
 }
 
 export interface AdminScenarioDetail {
   id: number
-  version: number
-  active: boolean
-  sourceScenarioId?: number
+  status: ScenarioStatus
+  revision: number
+  publishedVersion?: number | null
+  sourceScenarioId?: number | null
   createdAt: string
   updatedAt: string
   maxScore: number
   definition: ScenarioDefinition
 }
 
-export interface AdminUserRow extends User {
-  attempts: number
-  completed: number
-  averageScore?: number
+export interface GenerateRequest {
+  type: ScenarioType
+  title?: string
+  difficulty?: Difficulty
+  primaryAsset?: string
+  attackerIp?: string
+  region?: string
+  brief?: string
+  useAi?: boolean
 }
 
-export interface PageView<T> {
-  items: T[]
-  page: number
-  size: number
-  totalItems: number
-  totalPages: number
+export interface GenerateResponse {
+  scenario: AdminScenarioDetail
+  aiSource?: AiSource | null
 }
 
-export interface AttemptRow {
-  id: number
-  userId: number
-  userEmail: string
-  userName: string
-  scenarioId: number
-  scenarioTitle: string
-  status: SimulationStatus
-  scorePercent?: number
-  actionCount: number
-  hintsUsed: number
-  createdAt: string
-  completedAt?: string
+export type GraphNodeType = 'START' | 'ACTION' | 'EVENT' | 'RESOURCE'
+export type GraphEdgeType = 'INITIAL' | 'PREREQUISITE' | 'REVEALS' | 'TARGETS' | 'EFFECT' | 'ABOUT'
+
+export interface GraphNode {
+  id: string
+  type: GraphNodeType
+  key: string
+  label: string
+  attributes: Record<string, unknown>
 }
 
-export interface AiInteractionView {
-  id: number
-  type: string
-  provider: string
-  model?: string
-  status: string
-  request?: string
-  response: string
-  latencyMs: number
-  inputTokens?: number
-  outputTokens?: number
-  createdAt: string
+export interface GraphEdge {
+  from: string
+  to: string
+  type: GraphEdgeType
 }
 
-export interface AttemptDetail {
-  attempt: AttemptRow
-  simulation: SimulationDetail
-  result?: SimulationResult
-  aiInteractions: AiInteractionView[]
+export interface ScenarioGraph {
+  nodes: GraphNode[]
+  edges: GraphEdge[]
 }
 
-export interface AnalyticsOverview {
-  totals: {
-    users: number
-    students: number
-    activeScenarios: number
-    simulations: number
-    completed: number
-    inProgress: number
-    averageScore?: number
-    completionRatePercent?: number
-  }
-  scenarios: { scenarioId: number; title: string; attempts: number; completed: number; averageScore?: number; averageDurationMinutes?: number }[]
-  scoreDistribution: { range: string; count: number }[]
-  attemptsPerDay: { day: string; attempts: number; completed: number }[]
-  aiUsage: { type: string; status: string; count: number; averageLatencyMs?: number }[]
+export type IssueSeverity = 'ERROR' | 'WARNING' | 'INFO'
+
+export interface ValidationIssue {
+  severity: IssueSeverity
+  code: string
+  path: string
+  message: string
 }
 
-export interface MistakeStat {
-  scenarioTitle: string
+export interface ValidationStats {
+  actions: number
+  events: number
+  resources: number
+  evidenceEvents: number
+  expectedActions: number
+  harmfulActions: number
+  neutralActions: number
+  maxDepth: number
+  categoriesCovered: number
+}
+
+export interface ValidationReport {
+  valid: boolean
+  errorCount: number
+  warningCount: number
+  stats?: ValidationStats | null
+  issues: ValidationIssue[]
+}
+
+export type TestPathName = 'CORRECT' | 'DANGEROUS'
+
+export interface TestStep {
+  sequence: number
   actionKey: string
   label: string
-  count: number
-  percent?: number
+  outcome: ActionOutcome
+  points: number
+  outOfOrder: boolean
+  duplicate: boolean
+  revealedEvents: number
+  resourceEffect?: string | null
 }
 
-export interface Mistakes {
-  harmfulActions: MistakeStat[]
-  missedActions: MistakeStat[]
-  unnecessaryActions: MistakeStat[]
+export interface TestCheck {
+  name: string
+  passed: boolean
+  message: string
+}
+
+export interface TestPath {
+  path: TestPathName
+  description: string
+  passed: boolean
+  rawScore: number
+  maxScore: number
+  scorePercent: number
+  evidenceRevealed: number
+  evidenceTotal: number
+  steps: TestStep[]
+  checks: TestCheck[]
+}
+
+export interface TestReport {
+  passed: boolean
+  paths: TestPath[]
+}
+
+export type QualityGrade = 'EXCELLENT' | 'GOOD' | 'FAIR' | 'POOR'
+
+export interface QualityComponent {
+  name: string
+  score: number
+  max: number
+  details: string
+}
+
+export interface QualityReport {
+  score: number
+  grade: QualityGrade
+  meetsPublishThreshold: boolean
+  components: QualityComponent[]
+}
+
+export interface Evaluation {
+  validation: ValidationReport
+  tests?: TestReport | null
+  quality: QualityReport
+  publishable: boolean
+  blockers: string[]
+}
+
+export interface VersionSummary {
+  id: number
+  versionNumber: number
+  qualityScore: number
+  grade: QualityGrade
+  changeNote?: string | null
+  publishedBy?: string | null
+  publishedAt: string
+}
+
+export interface VersionDetail {
+  summary: VersionSummary
+  definition: ScenarioDefinition
+  quality: QualityReport
 }

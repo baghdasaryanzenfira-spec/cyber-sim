@@ -1,6 +1,6 @@
 import { Chip, type ChipProps } from '@mui/material'
 import { useTranslation } from 'react-i18next'
-import type { ActionOutcome, Category, Difficulty, Severity, SimulationStatus } from '../api/types'
+import type { ActionOutcome, Category, Difficulty, QualityGrade, ScenarioStatus, Severity } from '../api/types'
 
 type Color = ChipProps['color']
 
@@ -16,14 +16,21 @@ export function SeverityChip({ severity }: { severity: Severity }) {
   )
 }
 
-const statusColor: Record<SimulationStatus, Color> = {
-  CREATED: 'default', RUNNING: 'info', INVESTIGATING: 'primary', RESPONDING: 'warning',
-  COMPLETED: 'success', ABANDONED: 'default',
+const statusColor: Record<ScenarioStatus, Color> = { DRAFT: 'info', PUBLISHED: 'success', ARCHIVED: 'default' }
+
+export function ScenarioStatusChip({ status }: { status: ScenarioStatus }) {
+  const { t } = useTranslation()
+  return (
+    <Chip size="small" label={t(`enums.scenarioStatus.${status}`)} color={statusColor[status]}
+      variant={status === 'PUBLISHED' ? 'filled' : 'outlined'} />
+  )
 }
 
-export function StatusChip({ status }: { status: SimulationStatus }) {
+const gradeColor: Record<QualityGrade, Color> = { EXCELLENT: 'success', GOOD: 'info', FAIR: 'warning', POOR: 'error' }
+
+export function GradeChip({ grade }: { grade: QualityGrade }) {
   const { t } = useTranslation()
-  return <Chip size="small" label={t(`enums.status.${status}`)} color={statusColor[status]} />
+  return <Chip size="small" label={t(`enums.grade.${grade}`)} color={gradeColor[grade]} />
 }
 
 const difficultyColor: Record<Difficulty, Color> = { BEGINNER: 'success', INTERMEDIATE: 'warning', ADVANCED: 'error' }
@@ -43,14 +50,6 @@ const outcomeColor: Record<ActionOutcome, Color> = { EXPECTED: 'success', NEUTRA
 export function OutcomeChip({ outcome }: { outcome: ActionOutcome }) {
   const { t } = useTranslation()
   return <Chip size="small" label={t(`enums.outcome.${outcome}`)} color={outcomeColor[outcome]} variant="outlined" />
-}
-
-/** Colour for a simulated resource status such as RUNNING, ISOLATED, COMPROMISED. */
-export function resourceStatusColor(status: string): Color {
-  if (['COMPROMISED', 'PUBLIC', 'TERMINATED', 'DELETED'].includes(status)) return 'error'
-  if (['ISOLATED', 'DISABLED', 'SESSIONS_REVOKED', 'REBOOTING'].includes(status)) return 'warning'
-  if (['RESTRICTED', 'PRIVATE', 'PASSWORD_RESET', 'MFA_ENFORCED'].includes(status)) return 'success'
-  return 'info'
 }
 
 export function scoreColor(score?: number | null): 'success' | 'warning' | 'error' | 'inherit' {

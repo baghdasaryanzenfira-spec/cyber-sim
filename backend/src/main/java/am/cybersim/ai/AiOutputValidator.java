@@ -1,16 +1,10 @@
 package am.cybersim.ai;
 
-import am.cybersim.ai.context.SimulationSnapshot;
-import am.cybersim.ai.dto.AiDtos.Recommendation;
-import am.cybersim.ai.dto.AiDtos.RecommendationList;
-import am.cybersim.ai.dto.AiFeedback;
 import am.cybersim.scenario.dto.ScenarioDefinition;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
-import java.util.List;
-import java.util.Locale;
 import java.util.regex.Pattern;
 
 /**
@@ -19,19 +13,13 @@ import java.util.regex.Pattern;
  *
  * <ul>
  *   <li>Text answers: not blank, length limit, control characters removed.</li>
- *   <li>Hints: additionally a <b>solution-leak check</b> — a hint that names two or more of the remaining
- *       expected actions verbatim is rejected, because it would give away the solution.</li>
- *   <li>JSON answers: parsed into the expected record; size limits per field.</li>
+ *   <li>JSON answers: parsed into the expected record; the scenario rules are enforced by the caller.</li>
  * </ul>
  */
 @Component
 public class AiOutputValidator {
 
-    static final int MAX_HINT_CHARS = 800;
-    static final int MAX_ANSWER_CHARS = 2000;
     static final int MAX_TRANSLATION_CHARS = 12_000;
-    static final int MAX_LIST_ITEMS = 8;
-    static final int MAX_ITEM_CHARS = 500;
     private static final Pattern CONTROL_CHARS = Pattern.compile("[\\p{Cntrl}&&[^\n\t]]");
     private static final Pattern CODE_FENCE = Pattern.compile("^```(?:json)?\\s*|\\s*```$");
 
@@ -41,46 +29,7 @@ public class AiOutputValidator {
         this.objectMapper = objectMapper;
     }
 
-    public String validateHint(String text, SimulationSnapshot snapshot) {
-        String clean = validateText(text, MAX_HINT_CHARS);
-        String lower = clean.toLowerCase(Locale.ROOT);
-        long leakedLabels = snapshot.remainingExpected().stream()
-                .filter(a -> lower.contains(a.label().toLowerCase(Locale.ROOT)))
-                .count();
-        if (leakedLabels >= 2) {
-            throw new AiProviderException("Hint rejected: reveals " + leakedLabels + " solution steps");
-        }
-        return clean;
-    }
-
-    public String validateAnswer(String text) {
-        return validateText(text, MAX_ANSWER_CHARS);
-    }
-
-    public AiFeedback validateFeedback(String json) {
-        AiFeedback feedback = parse(json, AiFeedback.class);
-        if (feedback.summary() == null || feedback.summary().isBlank()) {
-            throw new AiProviderException("Feedback without summary");
-        }
-        return new AiFeedback(validateText(feedback.summary(), MAX_ANSWER_CHARS),
-                limit(feedback.strengths()), limit(feedback.improvements()), limit(feedback.missedEvidence()),
-                limit(feedback.orderIssues()), limit(feedback.unnecessaryActions()), limit(feedback.nextSteps()));
-    }
-
-    public List<Recommendation> validateRecommendations(String json) {
-        RecommendationList list = parse(json, RecommendationList.class);
-        if (list.recommendations() == null || list.recommendations().isEmpty()) {
-            throw new AiProviderException("No recommendations returned");
-        }
-        return list.recommendations().stream()
-                .filter(r -> r.category() != null && r.topic() != null && !r.topic().isBlank())
-                .limit(3)
-                .map(r -> new Recommendation(validateText(r.topic(), 100), r.category(),
-                        r.reason() == null ? "" : validateText(r.reason(), MAX_ITEM_CHARS)))
-                .toList();
-    }
-
-    /** Only parsing here; the scenario rules are enforced by {@code ScenarioVariationService}. */
+    /** Only parsing here; the scenario rules are enforced by the callers ({@code ScenarioVariationService}, {@code ScenarioGeneratorService}). */
     public ScenarioDefinition parseScenarioDefinition(String json) {
         return parse(json, ScenarioDefinition.class);
     }
@@ -123,14 +72,5 @@ public class AiOutputValidator {
             throw new AiProviderException("AI response too long (" + clean.length() + " chars)");
         }
         return clean;
-    }
-
-    private static List<String> limit(List<String> items) {
-        return items.stream()
-                .filter(i -> i != null && !i.isBlank())
-                .map(i -> CONTROL_CHARS.matcher(i).replaceAll("").strip())
-                .map(i -> i.length() > MAX_ITEM_CHARS ? i.substring(0, MAX_ITEM_CHARS) + "…" : i)
-                .limit(MAX_LIST_ITEMS)
-                .toList();
     }
 }

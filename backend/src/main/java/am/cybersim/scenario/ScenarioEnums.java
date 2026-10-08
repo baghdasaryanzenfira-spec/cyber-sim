@@ -9,6 +9,9 @@ public final class ScenarioEnums {
     private ScenarioEnums() {
     }
 
+    /** Authoring lifecycle: DRAFT (editable) -> PUBLISHED (a frozen version exists) -> ARCHIVED (retired). */
+    public enum ScenarioStatus { DRAFT, PUBLISHED, ARCHIVED }
+
     public enum Difficulty { BEGINNER, INTERMEDIATE, ADVANCED }
 
     /** Training topic; also used for progress statistics and learning recommendations. */

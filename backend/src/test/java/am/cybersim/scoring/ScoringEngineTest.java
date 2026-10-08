@@ -1,11 +1,11 @@
 package am.cybersim.scoring;
 
-import am.cybersim.scenario.ScenarioAction;
+import am.cybersim.scenario.dto.ScenarioDefinition.ActionDef;
 import am.cybersim.scenario.ScenarioEnums.ActionCategory;
 import am.cybersim.scenario.ScenarioEnums.ActionOutcome;
 import am.cybersim.scoring.ScoreResult.ItemKind;
 import am.cybersim.scoring.ScoringEngine.PerformedAction;
-import am.cybersim.support.TestScenarios;
+import am.cybersim.support.TestDefinitions;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -15,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ScoringEngineTest {
 
     ScoringEngine engine = new ScoringEngine();
-    List<ScenarioAction> catalogue = TestScenarios.scenario().getActions();
+    List<ActionDef> catalogue = TestDefinitions.smallActions();
 
     static PerformedAction expected(String key, int points) {
         return new PerformedAction(key, key, ActionCategory.INSPECT, ActionOutcome.EXPECTED, false, false, points);
@@ -59,7 +59,7 @@ class ScoringEngineTest {
 
     @Test
     void pointsForAppliesOrderPenaltyButNeverBelowZero() {
-        ScenarioAction isolate = catalogue.stream().filter(a -> a.getActionKey().equals("isolate-vm")).findFirst().orElseThrow();
+        ActionDef isolate = catalogue.stream().filter(a -> a.key().equals("isolate-vm")).findFirst().orElseThrow();
         assertThat(engine.pointsFor(isolate, false, false, 5)).isEqualTo(30);
         assertThat(engine.pointsFor(isolate, true, false, 5)).isEqualTo(25);
         assertThat(engine.pointsFor(isolate, true, false, 50)).isZero();

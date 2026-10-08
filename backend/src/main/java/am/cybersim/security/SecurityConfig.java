@@ -32,7 +32,7 @@ import java.util.List;
  * <ul>
  *   <li>Stateless: no HTTP session, no CSRF token (the API is called with bearer tokens, not cookies).</li>
  *   <li>JWTs are validated by the OAuth2 resource-server filter; the {@code role} claim is mapped to
- *       {@code ROLE_STUDENT} / {@code ROLE_ADMIN}.</li>
+ *       {@code ROLE_ADMIN}.</li>
  *   <li>URL rules give a coarse first line of defence; data ownership is enforced in the services.</li>
  *   <li>401 and 403 responses use the same {@link ApiError} JSON format as all other errors.</li>
  * </ul>
@@ -42,7 +42,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private static final String[] PUBLIC_ENDPOINTS = {
-            "/api/auth/register", "/api/auth/login",
+            "/api/auth/login",
             "/actuator/health/**", "/actuator/info",
             "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**"
     };

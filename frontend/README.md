@@ -1,6 +1,9 @@
 # CyberSim frontend
 
-React 19 + TypeScript + Vite single-page application. See `docs/en/07-frontend-implementation.md`.
+React 19 + TypeScript + Vite single-page application: the **admin scenario-authoring platform** (the learner-facing
+UI is owned by a separate team). Admins sign in, generate scenario drafts from templates, edit them, review
+validation / test-runner / quality results, view the dependency graph, publish versions and restore earlier ones.
+The UI is available in English and Armenian. See `docs/en/07-frontend-implementation.md`.
 
 ```bash
 npm install

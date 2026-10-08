@@ -55,8 +55,6 @@ app:
     enabled: ${APP_DEMO_DATA_ENABLED:false}
     admin-email: ${DEMO_ADMIN_EMAIL:admin@cybersim.local}
     admin-password: ${DEMO_ADMIN_PASSWORD:}
-    student-email: ${DEMO_STUDENT_EMAIL:student@cybersim.local}
-    student-password: ${DEMO_STUDENT_PASSWORD:}
   ai:
     provider: ${AI_PROVIDER:mock}
     anthropic-api-key: ${ANTHROPIC_API_KEY:}

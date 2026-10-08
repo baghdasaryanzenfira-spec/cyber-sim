@@ -52,7 +52,7 @@ public class TranslationService {
         }
 
         AiResult<String> result = gateway.execute(new AiPayload.Translation(source, languageName),
-                new AiGateway.CallContext(userId, null, null, abbreviate(source)),
+                new AiGateway.CallContext(userId, null, abbreviate(source)),
                 translated -> validator.validateTranslation(translated, source));
         return new TranslationResult(result.value(), result.source());
     }

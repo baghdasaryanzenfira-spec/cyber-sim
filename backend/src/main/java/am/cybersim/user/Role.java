@@ -1,10 +1,10 @@
 package am.cybersim.user;
 
 /**
- * Fixed set of roles. Stored as a string column with a CHECK constraint (see 05-database-design §3.1).
+ * Fixed set of roles. Stored as a string column with a CHECK constraint. The authoring platform is
+ * administrator-only; trainee accounts belong to the separate learner-facing module.
  */
 public enum Role {
-    STUDENT,
     ADMIN;
 
     public String authority() {

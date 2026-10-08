@@ -10,7 +10,6 @@
   "recommendedSolution": "1. Read the SSH authentication log and the VPC flow logs to confirm the brute-force pattern and the successful login from the attacking IP.\n2. Classify the incident as an SSH brute-force compromise and mark web-prod-01 as compromised.\n3. Isolate web-prod-01 with a quarantine security group (do NOT terminate it — memory and disk are evidence).\n4. Disable the compromised 'admin' account and delete the backdoor account 'sysbackup'.\n5. Rotate all credentials and SSH keys that existed on the host; switch to key-based SSH only.\n6. Restrict SSH in sg-web-prod to the corporate VPN range (or use a bastion / session manager).",
   "hintPenalty": 2,
   "outOfOrderPenalty": 5,
-  "active": true,
   "learningObjectives": [
     "Recognise the log pattern of an SSH brute-force attack followed by a successful login",
     "Correlate host logs, network flow logs and threat-detection alerts",

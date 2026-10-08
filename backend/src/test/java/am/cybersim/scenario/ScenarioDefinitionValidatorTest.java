@@ -59,7 +59,7 @@ class ScenarioDefinitionValidatorTest {
 
     static ScenarioDefinition definition(List<EventDef> events, List<ActionDef> actions) {
         return new ScenarioDefinition("test-scenario", "Title", "Summary", "Description", Difficulty.BEGINNER,
-                Category.NETWORK, 10, "Explanation", "Solution", 2, 5, true, List.of("Objective"),
+                Category.NETWORK, 10, "Explanation", "Solution", 2, 5, List.of("Objective"),
                 List.of(vm()), events, actions, List.of("hint"));
     }
 
@@ -137,7 +137,7 @@ class ScenarioDefinitionValidatorTest {
     @Test
     void rejectsBeanValidationViolations() {
         var def = new ScenarioDefinition("Invalid Slug!", "", "s", "d", Difficulty.BEGINNER, Category.NETWORK, 0,
-                "e", "s", -1, 0, true, List.of(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), null);
+                "e", "s", -1, 0, List.of(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), null);
         assertInvalid(def, "slug");
         assertInvalid(def, "estimatedMinutes");
     }

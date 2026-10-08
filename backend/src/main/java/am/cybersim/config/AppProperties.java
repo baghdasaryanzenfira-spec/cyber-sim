@@ -30,9 +30,7 @@ public record AppProperties(
     public record Demo(
             @DefaultValue("false") boolean enabled,
             String adminEmail,
-            String adminPassword,
-            String studentEmail,
-            String studentPassword) {
+            String adminPassword) {
     }
 
     public record Ai(

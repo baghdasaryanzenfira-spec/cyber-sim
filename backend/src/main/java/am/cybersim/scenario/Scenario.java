@@ -2,6 +2,7 @@ package am.cybersim.scenario;
 
 import am.cybersim.scenario.ScenarioEnums.Category;
 import am.cybersim.scenario.ScenarioEnums.Difficulty;
+import am.cybersim.scenario.ScenarioEnums.ScenarioStatus;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -66,12 +67,17 @@ public class Scenario {
     @Column(name = "out_of_order_penalty", nullable = false)
     private int outOfOrderPenalty;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private boolean active;
+    private ScenarioStatus status = ScenarioStatus.DRAFT;
 
-    /** Content version, incremented on every edit; simulations remember the version they were started with. */
+    /** Edit counter of the working copy; incremented on every save. Published versions are separate snapshots. */
     @Column(nullable = false)
-    private int version = 1;
+    private int revision = 1;
+
+    /** Highest published version number, null while the scenario was never published. */
+    @Column(name = "published_version")
+    private Integer publishedVersion;
 
     @Column(name = "source_scenario_id")
     private Long sourceScenarioId;
@@ -176,12 +182,16 @@ public class Scenario {
         this.updatedAt = now;
     }
 
-    public void incrementVersion() {
-        this.version++;
+    public void incrementRevision() {
+        this.revision++;
     }
 
-    public void setActive(boolean active) {
-        this.active = active;
+    public void setStatus(ScenarioStatus status) {
+        this.status = status;
+    }
+
+    public void setPublishedVersion(Integer publishedVersion) {
+        this.publishedVersion = publishedVersion;
     }
 
     public void setSourceScenarioId(Long sourceScenarioId) {
@@ -236,12 +246,16 @@ public class Scenario {
         return outOfOrderPenalty;
     }
 
-    public boolean isActive() {
-        return active;
+    public ScenarioStatus getStatus() {
+        return status;
     }
 
-    public int getVersion() {
-        return version;
+    public int getRevision() {
+        return revision;
+    }
+
+    public Integer getPublishedVersion() {
+        return publishedVersion;
     }
 
     public Long getSourceScenarioId() {

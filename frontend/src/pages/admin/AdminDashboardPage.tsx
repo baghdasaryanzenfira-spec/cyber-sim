@@ -1,95 +1,113 @@
-import GroupIcon from '@mui/icons-material/Group'
-import PercentIcon from '@mui/icons-material/Percent'
-import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck'
+import AccountTreeIcon from '@mui/icons-material/AccountTree'
+import ArchiveIcon from '@mui/icons-material/Archive'
+import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh'
+import EditNoteIcon from '@mui/icons-material/EditNote'
+import FactCheckIcon from '@mui/icons-material/FactCheck'
+import HistoryIcon from '@mui/icons-material/History'
+import ListAltIcon from '@mui/icons-material/ListAlt'
+import PublishIcon from '@mui/icons-material/Publish'
+import ScienceIcon from '@mui/icons-material/Science'
+import SpeedIcon from '@mui/icons-material/Speed'
 import TravelExploreIcon from '@mui/icons-material/TravelExplore'
-import { Button, Grid, Paper, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material'
-import { BarChart } from '@mui/x-charts/BarChart'
-import { LineChart } from '@mui/x-charts/LineChart'
+import { Box, Button, Grid, Paper, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material'
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link as RouterLink } from 'react-router'
 import { adminApi } from '../../api/endpoints'
-import { StatusChip, scoreColor } from '../../components/Chips'
+import type { ScenarioStatus } from '../../api/types'
+import { ScenarioStatusChip } from '../../components/Chips'
 import { ErrorAlert, Loading } from '../../components/Feedback'
 import { PageHeader } from '../../components/Layout'
 import { StatTile } from '../../components/StatTile'
 import { useLoad } from '../../hooks/useLoad'
 
+const STEPS: { key: string; icon: ReactNode }[] = [
+  { key: 'generate', icon: <AutoFixHighIcon /> },
+  { key: 'edit', icon: <EditNoteIcon /> },
+  { key: 'graph', icon: <AccountTreeIcon /> },
+  { key: 'validation', icon: <FactCheckIcon /> },
+  { key: 'tests', icon: <ScienceIcon /> },
+  { key: 'quality', icon: <SpeedIcon /> },
+  { key: 'publish', icon: <PublishIcon /> },
+  { key: 'versions', icon: <HistoryIcon /> },
+]
+
+function WorkflowStep({ index, stepKey, icon }: { index: number; stepKey: string; icon: ReactNode }) {
+  const { t } = useTranslation()
+  return (
+    <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+      <Box sx={{ color: 'primary.main', mt: 0.25 }}>{icon}</Box>
+      <Box>
+        <Typography sx={{ fontWeight: 600 }}>{index}. {t(`dashboard.steps.${stepKey}.title`)}</Typography>
+        <Typography variant="body2" color="text.secondary">{t(`dashboard.steps.${stepKey}.text`)}</Typography>
+      </Box>
+    </Box>
+  )
+}
+
 export function AdminDashboardPage() {
   const { t } = useTranslation()
-  const overview = useLoad(adminApi.overview)
-  const recent = useLoad(() => adminApi.attempts({ size: 6 }))
-  const mistakes = useLoad(adminApi.mistakes)
+  const scenarios = useLoad(adminApi.scenarios)
 
-  if (overview.loading) return <Loading />
-  const o = overview.data
-  if (!o) return <ErrorAlert message={overview.error} />
+  if (scenarios.loading && !scenarios.data) return <Loading />
+  const all = scenarios.data
+  if (!all) return <ErrorAlert message={scenarios.error} />
+
+  const count = (status: ScenarioStatus) => all.filter((s) => s.status === status).length
+  const recent = [...all].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 5)
 
   return (
     <>
-      <PageHeader title={t('admin.dashboardTitle')} subtitle={t('admin.dashboardSubtitle')} />
+      <PageHeader title={t('dashboard.title')} subtitle={t('dashboard.subtitle')}
+        actions={<>
+          <Button component={RouterLink} to="/admin/scenarios" startIcon={<ListAltIcon />}>{t('dashboard.allScenarios')}</Button>
+          <Button component={RouterLink} to="/admin/generate" variant="contained" startIcon={<AutoFixHighIcon />}>
+            {t('nav.generate')}
+          </Button>
+        </>} />
       <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid size={{ xs: 6, md: 3 }}><StatTile label={t('admin.students')} value={o.totals.students} hint={t('admin.usersTotal', { count: o.totals.users })} icon={<GroupIcon />} /></Grid>
-        <Grid size={{ xs: 6, md: 3 }}><StatTile label={t('admin.activeScenarios')} value={o.totals.activeScenarios} icon={<TravelExploreIcon />} color="secondary.main" /></Grid>
-        <Grid size={{ xs: 6, md: 3 }}><StatTile label={t('admin.simulations')} value={o.totals.simulations} hint={t('admin.completedInProgress', { completed: o.totals.completed, inProgress: o.totals.inProgress })} icon={<PlaylistAddCheckIcon />} color="success.main" /></Grid>
-        <Grid size={{ xs: 6, md: 3 }}><StatTile label={t('admin.averageScore')} value={o.totals.averageScore ?? '—'} hint={t('admin.completionRate', { rate: o.totals.completionRatePercent ?? 0 })} icon={<PercentIcon />} color="warning.main" /></Grid>
-      </Grid>
-      <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid size={{ xs: 12, md: 7 }}>
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="h6">{t('admin.attempts14d')}</Typography>
-            <LineChart height={260}
-              xAxis={[{ scaleType: 'point', data: o.attemptsPerDay.map((d) => d.day.substring(5)) }]} yAxis={[{ tickMinStep: 1 }]}
-              series={[
-                { data: o.attemptsPerDay.map((d) => d.attempts), label: t('admin.startedSeries'), color: '#22d3ee', curve: 'linear' },
-                { data: o.attemptsPerDay.map((d) => d.completed), label: t('admin.completedSeries'), color: '#34d399', curve: 'linear' },
-              ]} />
-          </Paper>
-        </Grid>
-        <Grid size={{ xs: 12, md: 5 }}>
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="h6">{t('admin.avgScorePerScenario')}</Typography>
-            <BarChart height={260} layout="horizontal"
-              yAxis={[{ scaleType: 'band', data: o.scenarios.map((s) => s.title.length > 22 ? s.title.substring(0, 22) + '…' : s.title), width: 150 }]}
-              xAxis={[{ min: 0, max: 100 }]}
-              series={[{ data: o.scenarios.map((s) => s.averageScore ?? 0), label: t('admin.avgScoreSeries'), color: '#a78bfa' }]} />
-          </Paper>
-        </Grid>
+        <Grid size={{ xs: 6, md: 3 }}><StatTile label={t('dashboard.total')} value={all.length} icon={<TravelExploreIcon />} /></Grid>
+        <Grid size={{ xs: 6, md: 3 }}><StatTile label={t('dashboard.drafts')} value={count('DRAFT')} icon={<EditNoteIcon />} color="info.main" /></Grid>
+        <Grid size={{ xs: 6, md: 3 }}><StatTile label={t('dashboard.published')} value={count('PUBLISHED')} icon={<PublishIcon />} color="success.main" /></Grid>
+        <Grid size={{ xs: 6, md: 3 }}><StatTile label={t('dashboard.archived')} value={count('ARCHIVED')} icon={<ArchiveIcon />} color="text.secondary" /></Grid>
       </Grid>
       <Grid container spacing={2}>
-        <Grid size={{ xs: 12, md: 7 }}>
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom>{t('admin.recentAttempts')}</Typography>
-            <Table size="small">
-              <TableHead><TableRow><TableCell>{t('admin.student')}</TableCell><TableCell>{t('admin.scenario')}</TableCell><TableCell>{t('admin.status')}</TableCell><TableCell>{t('admin.score')}</TableCell><TableCell /></TableRow></TableHead>
-              <TableBody>
-                {recent.data?.items.map((a) => (
-                  <TableRow key={a.id} hover>
-                    <TableCell>{a.userName}</TableCell>
-                    <TableCell>{a.scenarioTitle}</TableCell>
-                    <TableCell><StatusChip status={a.status} /></TableCell>
-                    <TableCell><Typography color={scoreColor(a.scorePercent)} sx={{ fontWeight: 700 }}>{a.scorePercent ?? '—'}</Typography></TableCell>
-                    <TableCell align="right"><Button size="small" component={RouterLink} to={`/admin/attempts/${a.id}`}>{t('common.details')}</Button></TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Paper sx={{ p: 2.5, height: '100%' }}>
+            <Typography variant="h6">{t('dashboard.workflowTitle')}</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{t('dashboard.workflowSubtitle')}</Typography>
+            <Box sx={{ display: 'grid', gap: 1.75 }}>
+              {STEPS.map((s, i) => <WorkflowStep key={s.key} index={i + 1} stepKey={s.key} icon={s.icon} />)}
+            </Box>
           </Paper>
         </Grid>
-        <Grid size={{ xs: 12, md: 5 }}>
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom>{t('admin.commonMistakes')}</Typography>
-            <Table size="small">
-              <TableHead><TableRow><TableCell>{t('admin.harmfulAction')}</TableCell><TableCell align="right">{t('admin.count')}</TableCell></TableRow></TableHead>
-              <TableBody>
-                {mistakes.data?.harmfulActions.slice(0, 5).map((m) => (
-                  <TableRow key={m.scenarioTitle + m.actionKey}>
-                    <TableCell>{m.label}<Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{m.scenarioTitle}</Typography></TableCell>
-                    <TableCell align="right">{m.count}</TableCell>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Paper sx={{ p: 2.5, height: '100%' }}>
+            <Typography variant="h6" gutterBottom>{t('dashboard.recent')}</Typography>
+            {recent.length === 0 ? (
+              <Typography color="text.secondary">{t('dashboard.noScenarios')}</Typography>
+            ) : (
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>{t('list.titleCol')}</TableCell><TableCell>{t('list.status')}</TableCell>
+                    <TableCell>{t('list.updated')}</TableCell><TableCell />
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            <Button component={RouterLink} to="/admin/analytics" sx={{ mt: 1 }}>{t('admin.allAnalytics')}</Button>
+                </TableHead>
+                <TableBody>
+                  {recent.map((s) => (
+                    <TableRow key={s.id} hover>
+                      <TableCell>{s.title}</TableCell>
+                      <TableCell><ScenarioStatusChip status={s.status} /></TableCell>
+                      <TableCell>{new Date(s.updatedAt).toLocaleString()}</TableCell>
+                      <TableCell align="right">
+                        <Button size="small" component={RouterLink} to={`/admin/scenarios/${s.id}`}>{t('common.open')}</Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </Paper>
         </Grid>
       </Grid>

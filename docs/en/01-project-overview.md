@@ -1,3 +1,5 @@
+> **Scope change:** the project is now an admin-only scenario-authoring platform; the student side was removed. See [17 — Admin scenario-authoring platform](17-admin-authoring-platform.md), which supersedes the learner-facing parts of this document.
+
 # 01 — Project Overview
 
 **Project title:** Development of a Cloud Cyber Incident Simulation and Security Specialist Training Platform Using Artificial Intelligence
