@@ -15,6 +15,20 @@ History in two lines: the repo originally implemented the full product (student 
 commits up to `5c9925e`); the scope was then split between team members and this repo was cut down to the
 admin flow. `docs/en/17-admin-authoring-platform.md` is the canonical description of the current scope.
 
+## Status (last updated 2026-10-09)
+
+Latest completed work, in order:
+- Refactor to the admin-only authoring platform (`42ae909`): 8-step pipeline — generate → edit → graph →
+  validate → test-run → quality score → publish → versions.
+- Learner-module integration + AI exam review (`6fbafb8`, ADR-13): `/api/learner/**` service API behind
+  `X-API-Key`; every submitted exam is **verified by deterministic replay** (claimed score only sets
+  `scoreMatches`); admin **Student exams** page with a per-exam **Run AI review** button whose feedback is
+  stored and served back to the learner module. Demo: 2 seeded submissions (one perfect, one failing with a
+  false claim).
+- All docs 01–17 realigned to this scope in EN + HY (`a559fa6`); 76 backend tests green; stack verified live.
+- `progress-summary.txt` (repo root, untracked) is the user's short business-level summary in Armenian —
+  keep it in sync if the feature set changes.
+
 ## Architecture (backend: Spring Boot 4.1 / Java 21, frontend: React 19 + TS + MUI, PostgreSQL 17)
 
 - Five controllers:
