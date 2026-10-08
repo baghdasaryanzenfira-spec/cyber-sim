@@ -3,6 +3,11 @@
 This document is the basis for **Thesis Section 1**. Each technology is described with
 WHAT it is, WHY it was chosen, and which ALTERNATIVES were considered.
 
+> Scope: this repository is the **admin scenario-authoring platform**; the learner-facing runtime is a separate
+> module (see [17-admin-authoring-platform.md](17-admin-authoring-platform.md)). The research below still covers
+> the domain as a whole, because the authored scenarios encode the same incident-response concepts the learner
+> module later trains.
+
 ## 1. Domain background: cloud incident response
 
 ### 1.1 Shared-responsibility model
@@ -19,13 +24,16 @@ flowchart LR
   L -. lessons learned .-> P
 ```
 
-How it maps to CyberSim:
+How the authored scenarios encode it:
 
-| NIST phase | CyberSim |
+| NIST phase | In a CyberSim scenario definition |
 |-----------|----------|
-| Detection & Analysis | `INVESTIGATING` state — inspecting log sources, identifying evidence and the compromised resource |
-| Containment, Eradication & Recovery | `RESPONDING` state — isolating VMs, disabling credentials, rotating keys, blocking public access |
-| Post-Incident Activity | `COMPLETED` state — score, explanation, AI feedback, recommendations |
+| Detection & Analysis | `INVESTIGATION`-phase actions (INSPECT / IDENTIFY) — inspecting log sources, identifying evidence and the compromised resource; evidence markers and progressive disclosure model the analysis |
+| Containment, Eradication & Recovery | `RESPONSE`-phase actions (CONTAIN / ERADICATE / RECOVER / HARDEN) — isolating VMs, disabling credentials, rotating keys, blocking public access |
+| Post-Incident Activity | the scenario's incident explanation and recommended solution; the learner module presents them after an attempt |
+
+The authoring platform's **test runner** replays both an ideal and a harmful walk through this lifecycle before a
+scenario may be published.
 
 ### 1.3 Typical cloud log sources (simulated)
 | Source | Real-world equivalent | Used in scenario |
@@ -43,8 +51,12 @@ How it maps to CyberSim:
 - **Simulation with pre-authored telemetry** (chosen) — the environment is modelled as data:
   resources, log entries and the effects of actions. This is deterministic, cheap, safe and
   testable, and still trains the *decision-making* workflow, which is the main learning goal.
+  It is also what makes an **authoring platform** possible: because a scenario is pure data, it can be
+  generated from templates, graph-analysed, test-run and quality-scored before anyone trains on it.
 - **Intelligent tutoring systems** — give adaptive hints and feedback. LLMs make this practical
-  without hand-writing feedback for every possible combination of student actions.
+  without hand-writing feedback for every possible combination of learner actions. The tutoring itself
+  belongs to the learner module; this platform's contribution is content whose hints, explanations and
+  scoring rules the tutor can rely on.
 
 ## 2. Backend technologies
 
@@ -68,8 +80,8 @@ How it maps to CyberSim:
 - WHY: strong consistency, foreign keys, check constraints, and the `jsonb` type for the few
   genuinely flexible attributes (e.g. resource properties, event details). Runs easily in Docker.
 - Alternatives: MySQL (weaker JSON support), MongoDB (schema-less — loses referential integrity,
-  which matters for users/simulations/actions), H2 (only for tests — but behaviour differs from
-  PostgreSQL, so Testcontainers with real PostgreSQL is used instead).
+  which matters for scenarios, their child rows and immutable versions), H2 (only for tests — but
+  behaviour differs from PostgreSQL, so Testcontainers with real PostgreSQL is used instead).
 
 ## 4. Frontend
 
@@ -91,28 +103,35 @@ How it maps to CyberSim:
 
 ## 6. Artificial intelligence
 
-### 6.1 Large language models in education
-LLMs can explain concepts, adapt hints to the learner's current state and summarise performance
-in natural language. Their weaknesses — hallucination, non-determinism, prompt injection, cost
-and latency — mean they must not be the source of truth for grading or state changes.
+### 6.1 Large language models for content authoring
+LLMs can draft realistic incident narratives, vary existing content and translate text in natural
+language. Their weaknesses — hallucination, non-determinism, prompt injection, cost and latency —
+mean they must not be the source of truth for scenario structure, scoring rules or publishing
+decisions.
 
 ### 6.2 Chosen provider: Claude API (Anthropic)
 - Accessed over HTTPS with an API key provided via the `ANTHROPIC_API_KEY` environment variable.
-- Model is configurable (`AI_MODEL`, default `claude-sonnet-5-5` — a good balance of quality,
-  speed and cost for tutoring; `claude-haiku-4-5` is a cheaper option).
+- Model is configurable (`AI_MODEL`, default `claude-opus-5-5`; `claude-haiku-4-5` is a cheaper,
+  faster option for narrative polish and translation).
 - Alternatives: OpenAI API, local models through Ollama. Because the platform depends only on its
   own `AiProvider` interface, adding another provider is one new class.
 
-### 6.3 Method: "AI advises, application decides"
-- The **scoring engine is deterministic** and does not use AI — grades must be reproducible and explainable.
-- AI produces **explanatory text** (hints, feedback, recommendations) and **proposals**
-  (scenario variations) that are validated by application code before use.
-- A **mock provider** produces rule-based output from the same context, so the platform is fully
+### 6.3 Method: "AI proposes, application decides"
+- The **generator templates, test runner and quality score are deterministic** and do not use AI —
+  a publishing decision must be reproducible and explainable.
+- AI produces **proposals**: a polished narrative for a generated draft (`GENERATION`), a variation
+  of an existing scenario (`VARIATION`) and an on-demand translation of displayed text
+  (`TRANSLATION`). Every proposal is parsed, structure-checked against the deterministic draft and
+  passed through the normal scenario validator before it is accepted; otherwise the deterministic
+  result is kept (`FALLBACK`).
+- A **mock provider** produces rule-based output for the same tasks, so the platform is fully
   demonstrable offline and tests are deterministic.
 
 ### 6.4 Prompt engineering techniques used
-- System prompt defining the role (cybersecurity instructor), rules (do not reveal the full
-  solution, answer only about the simulation) and output format.
-- Structured context: scenario, visible evidence, performed actions and state are provided as
-  clearly delimited data — student text is marked as untrusted input.
-- Structured output (JSON) for feedback and variations, validated against an expected schema.
+- System prompt per task defining the role (training-content author / translator), the invariants
+  (keys, phases, outcomes, points and references must stay identical) and the output format.
+- Structured context: the scenario definition is provided as clearly delimited JSON; the
+  administrator's free-text brief and the text to translate are delimited and marked as data, not
+  instructions (prompt-injection mitigation).
+- Structured output (JSON) for generation and variations, validated against the scenario schema;
+  plain text with length limits for translation.

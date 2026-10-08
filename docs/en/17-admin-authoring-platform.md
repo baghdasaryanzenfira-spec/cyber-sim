@@ -108,6 +108,27 @@ restored into the draft.
 The three seed scenarios are imported and published as version 1 at start-up (they also serve as generator
 templates).
 
+## 2.7 Learner-module integration (ADR-13)
+
+The hand-over is no longer only a shared table: the learner module talks to a dedicated service API under
+`/api/learner/**`, authenticated with `X-API-Key` (`LEARNER_API_KEY`; 503 when unset, 401 when wrong, and the
+key never opens `/api/admin/**`):
+
+| Step | Endpoint |
+|------|----------|
+| Read the published catalogue | `GET /api/learner/scenarios` |
+| Read one published definition | `GET /api/learner/scenarios/{slug}` |
+| Submit a completed attempt | `POST /api/learner/attempts` |
+| Read result + AI feedback back | `GET /api/learner/attempts/{externalId}` |
+
+On submission the platform **replays the submitted actions against the pinned published version** with the test
+runner's rules and stores its own verified score; a claimed score is only compared (`scoreMatches`). The admin
+UI gains a **Student exams** page: every submission with claimed vs verified score and a per-attempt
+**Run AI review** button — the AI writes an advisory rating, message, strengths, mistakes and recommendations
+around the deterministic grade, the result is stored (and audited as `REVIEW` in `ai_interactions`) and the
+learner module fetches it from its own endpoint. Two demo submissions are seeded so the page is demonstrable
+without the learner module running.
+
 ## 3. Data model
 
 `V1__initial_schema.sql` was rewritten for this scope: `users` (role `ADMIN` only), `scenarios` (+ `scenario_objectives`,

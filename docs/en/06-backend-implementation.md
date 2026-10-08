@@ -1,5 +1,9 @@
 # 06 — Backend Implementation
 
+> Scope: the **admin scenario-authoring platform** (see [17-admin-authoring-platform.md](17-admin-authoring-platform.md)).
+> The learner-facing runtime is developed in another team's module; its hand-over point is the
+> `scenario_versions` table of published, immutable scenario snapshots.
+
 ## 1. Project structure
 
 ```
@@ -9,142 +13,152 @@ backend/
 └── src/
     ├── main/java/am/cybersim/
     │   ├── CyberSimApplication.java
-    │   ├── common/             ApiError, GlobalExceptionHandler, domain exceptions
+    │   ├── common/             ApiError, ApiException, GlobalExceptionHandler
     │   ├── config/             AppProperties, OpenApiConfig, ClockConfig, CORS
     │   ├── security/           SecurityConfig, JwtConfig, JwtTokenService, AuthUser, AuthUserArgumentResolver
     │   ├── auth/               AuthController, AuthService, dto/
-    │   ├── user/               User, Role, UserRepository, DemoDataInitializer
-    │   ├── scenario/           Scenario + child entities, ScenarioService, ScenarioDefinition(Validator), ScenarioSeeder
-    │   ├── simulation/         Simulation + child entities, SimulationEngine, SimulationStateMachine, SimulationService, SimulationAssistantService
-    │   ├── scoring/            ScoringEngine, ScoreResult
-    │   ├── ai/                 AiProvider, ClaudeAiProvider, MockAiProvider, AiGateway, TutorService, ScenarioVariationService, TranslationService, AiPromptBuilder, AiOutputValidator
-    │   ├── progress/           ProgressService, ProgressController
-    │   ├── analytics/          AnalyticsService
-    │   └── admin/              AdminController, AdminService
+    │   ├── user/               User, Role (ADMIN only), UserRepository, DemoDataInitializer
+    │   ├── scenario/           Scenario + child entities, ScenarioVersion, ScenarioService, ScenarioMapper,
+    │   │                       ScenarioDefinition(Validator), dto/
+    │   ├── authoring/          AuthoringController, AuthoringService, ScenarioGeneratorService, ScenarioGraph,
+    │   │                       ScenarioAnalyzer, ScenarioTestRunner, QualityScorer, ScenarioSeeder
+    │   ├── scoring/            ScoringEngine, ScoreResult (reused by the test runner)
+    │   └── ai/                 AiProvider, ClaudeAiProvider, MockAiProvider, AiGateway, AiPromptBuilder,
+    │                           AiOutputValidator, AiInteraction, ScenarioVariationService,
+    │                           TranslationService, TranslationController
     └── main/resources/
         ├── application.yml
-        ├── db/migration/       Flyway V1__initial_schema.sql, V2__ai_translation_task.sql
-        └── scenarios/          *.json seed scenario definitions
+        ├── db/migration/       Flyway V1__initial_schema.sql
+        └── scenarios/          *.json — seed scenarios, also the generator templates
 ```
 
 ## 2. REST API boundaries
 
 Base path `/api`. All bodies are JSON. Authentication: `Authorization: Bearer <JWT>`.
 Live documentation: Swagger UI at `/swagger-ui.html`, OpenAPI JSON at `/v3/api-docs`.
+`SecurityConfig` applies one URL rule: `/api/admin/**` requires `ROLE_ADMIN`, everything else under `/api/**`
+requires authentication; only login, the API docs and the actuator health/info endpoints are public.
+There is no self-registration — accounts are provisioned by the operator (`DemoDataInitializer`).
 
-### Authentication (public)
+### Authentication
 | Method | Path | Description | Responses |
 |--------|------|-------------|-----------|
-| POST | `/api/auth/register` | Register a student | 201, 400, 409 (e-mail taken) |
 | POST | `/api/auth/login` | Log in, returns `{accessToken, expiresAt, user}` | 200, 400, 401 |
 | GET | `/api/auth/me` | Current user | 200, 401 |
 
-### Scenarios (student)
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/scenarios` | Active scenarios (catalogue) |
-| GET | `/api/scenarios/{id}` | Briefing: description, objectives, difficulty — no solution data |
-
-### Simulations (student, owner only)
+### AI (any signed-in user)
 | Method | Path | Description | Responses |
 |--------|------|-------------|-----------|
-| POST | `/api/simulations` | `{scenarioId}` → create (or resume active) | 201 / 200, 404 |
-| GET | `/api/simulations` | My simulation history | 200 |
-| GET | `/api/simulations/{id}` | Full current state (resources, timeline, actions catalogue, performed actions) | 200, 403, 404 |
-| POST | `/api/simulations/{id}/start` | `CREATED → RUNNING` | 200, 409 |
-| POST | `/api/simulations/{id}/actions` | `{actionKey, note?}` perform action | 200, 400, 409 |
-| POST | `/api/simulations/{id}/complete` | Finish, score, AI feedback | 200, 409 |
-| POST | `/api/simulations/{id}/abandon` | Abandon | 200, 409 |
-| GET | `/api/simulations/{id}/result` | Score, breakdown, missed actions, explanation, feedback | 200, 409 (not completed) |
+| POST | `/api/ai/translate` | `{text, language}` → the same text in that language; nothing is stored (ADR-12) | 200, 400 (`UNSUPPORTED_LANGUAGE`, `EMPTY_TEXT`, `TEXT_TOO_LONG`) |
 
-### AI assistant (student, owner only)
+### Learner module (service, `X-API-Key`, base `/api/learner`) — ADR-13
+
+| Method | Path | Description | Responses |
+|--------|------|-------------|-----------|
+| GET | `/api/learner/scenarios` | Catalogue of scenarios with a published version | 200 |
+| GET | `/api/learner/scenarios/{slug}` | The latest published definition of one scenario | 200, 404 |
+| POST | `/api/learner/attempts` | Submit a completed attempt; the response carries the **verified** score computed here by replaying the actions | 201, 404, 409 `ATTEMPT_EXISTS` / `SCENARIO_NOT_PUBLISHED`, 422 `UNKNOWN_ACTION` |
+| GET | `/api/learner/attempts/{externalId}` | A submitted attempt: verified result plus the AI review once it exists | 200, 404 |
+
+Without a configured `LEARNER_API_KEY` these endpoints answer `503 INTEGRATION_DISABLED`; a missing or wrong
+key answers `401 INVALID_API_KEY`. An admin JWT does not open this surface, and the key does not open `/api/admin/**`.
+
+### Exams (`ADMIN`, base `/api/admin/exams`) — ADR-13
+
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/simulations/{id}/assistant/hint` | Contextual hint (counts towards hint penalty) |
-| POST | `/api/simulations/{id}/assistant/ask` | `{question}` free question |
-| GET | `/api/simulations/{id}/assistant/messages` | Assistant conversation history |
+| GET | `/api/admin/exams` | Submitted attempts, newest first (paged, optional `scenarioId`) |
+| GET | `/api/admin/exams/{id}` | One attempt: submitted actions, verified result, AI review |
+| POST | `/api/admin/exams/{id}/review` | Run (or re-run) the AI review; stored on the attempt and visible to the learner module |
 
-### AI (any signed-in user)
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/ai/translate` | `{text, language}` → the same text in that language; nothing is stored (ADR-12) |
+### Scenario authoring (`ADMIN`, base `/api/admin/scenarios`)
 
-### Progress (student)
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/progress/me` | Totals, per-category stats, per-scenario progress, score history, recent attempts |
-| GET | `/api/progress/me/recommendations` | AI learning recommendations based on my history |
+CRUD:
 
-### Admin (`ADMIN` role)
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/admin/users` | Users with attempt statistics |
-| GET | `/api/admin/users/{id}` | User detail + progress |
-| PATCH | `/api/admin/users/{id}/status` | `{enabled}` |
-| GET | `/api/admin/scenarios` | All scenarios incl. inactive |
-| GET | `/api/admin/scenarios/{id}` | Full `ScenarioDefinition` (incl. solution) |
-| POST | `/api/admin/scenarios` | Create from `ScenarioDefinition` |
-| PUT | `/api/admin/scenarios/{id}` | Replace definition (version++) |
-| PATCH | `/api/admin/scenarios/{id}/status` | `{active}` |
-| POST | `/api/admin/scenarios/{id}/variations` | AI-generated, validated, inactive draft |
-| GET | `/api/admin/simulations` | Attempts, filter by user/scenario/status (paged) |
-| GET | `/api/admin/simulations/{id}` | Attempt detail: actions, timeline, result, AI interactions |
-| GET | `/api/admin/analytics/overview` | Totals, average scores per scenario, attempts over time, AI usage |
-| GET | `/api/admin/analytics/mistakes` | Most common harmful actions and most often missed expected actions |
+| Method | Path | Description | Responses |
+|--------|------|-------------|-----------|
+| GET | `/` | All scenarios with lifecycle status, revision and published version | 200 |
+| GET | `/{id}` | Scenario with its full editable definition | 200, 404 |
+| POST | `/` | Create a draft from a complete `ScenarioDefinition` | 201, 409 (`SLUG_TAKEN`), 422 (`INVALID_SCENARIO`) |
+| PUT | `/{id}` | Replace the draft content; a published scenario becomes a draft again (revision + 1) | 200, 400 (`SLUG_IMMUTABLE`), 409 (`SCENARIO_ARCHIVED`), 422 |
+| PATCH | `/{id}/archive` | `{archived}` — archive, or restore to draft | 200 |
+| DELETE | `/{id}` | Delete a never-published draft | 204, 409 (`SCENARIO_PUBLISHED` — archive instead) |
+
+Generation and analysis:
+
+| Method | Path | Description | Responses |
+|--------|------|-------------|-----------|
+| POST | `/generate` | Build a draft from a scenario type (template + optional AI polish) and store it | 201, 400 (field errors) |
+| POST | `/{id}/variations` | AI variation of a scenario, validated and stored as a new draft | 201, 422 (`INVALID_VARIATION`) |
+| GET | `/{id}/graph` | Dependency graph (nodes: start, actions, events, resources) | 200 |
+| POST | `/{id}/validate` | Validation report (field, cross-reference and graph rules) | 200 |
+| POST | `/{id}/test-run` | Correct-path and dangerous-path report; `null` while validation has errors | 200 |
+| POST | `/{id}/evaluate` | Validation + tests + quality score + publishing blockers in one call | 200 |
+| POST | `/evaluate` | The same for an **unsaved** definition — live feedback while editing | 200 |
+
+Publishing and versions:
+
+| Method | Path | Description | Responses |
+|--------|------|-------------|-----------|
+| POST | `/{id}/publish` | `{changeNote?}` — freeze the draft as the next immutable version | 200, 409 (`SCENARIO_ARCHIVED`), 422 (`PUBLISH_BLOCKED` with the blocker list) |
+| GET | `/{id}/versions` | Published versions, newest first | 200 |
+| GET | `/{id}/versions/{number}` | One version with its frozen definition and quality report | 200, 404 |
+| POST | `/{id}/versions/{number}/restore` | Load a published version back into the editable draft | 200 |
+
+`GenerateRequest`: `type` (required — `SSH_BRUTE_FORCE`, `COMPROMISED_CREDENTIALS`, `PUBLIC_STORAGE_BUCKET`) plus
+optional `title`, `difficulty`, `primaryAsset`, `attackerIp`, `region`, `brief`, `useAi`; the free-text fields are
+constrained with `@Pattern` (IPv4, asset and region character sets) so template substitution stays injection-free.
 
 ### Error format
 Every error uses the same body (`ApiError`):
 
 ```json
 {
-  "timestamp": "2026-10-06T10:15:30Z",
-  "status": 409,
-  "error": "Conflict",
-  "code": "INVALID_STATE_TRANSITION",
-  "message": "Cannot perform actions on a simulation in status COMPLETED",
-  "path": "/api/simulations/42/actions",
+  "timestamp": "2026-10-08T10:15:30Z",
+  "status": 422,
+  "error": "Unprocessable Content",
+  "code": "PUBLISH_BLOCKED",
+  "message": "The scenario cannot be published: Quality score 58 is below the publishing threshold of 70",
+  "path": "/api/admin/scenarios/4/publish",
   "fieldErrors": []
 }
 ```
 
-Additional endpoint implemented during Phase 5: `PUT /api/simulations/{id}/events/{eventId}/flag` `{flagged}` —
-add/remove a log entry on the student's evidence board.
+`GlobalExceptionHandler` maps `ApiException` (status + code), Bean Validation errors (400 `VALIDATION_FAILED`
+with field errors), malformed JSON and type mismatches (400), unsupported methods (405), unknown routes (404) and
+unexpected exceptions (500 without internal details, full stack trace in the log). Spring Security's entry point
+and access-denied handler write the same JSON body for 401/403.
 
 ## 3. Implementation notes
 
-### 3.1 Transaction design
+### 3.1 Validation strategy
+The `ScenarioDefinition` body of `POST /` and `PUT /{id}` is deliberately **not** annotated with `@Valid`:
+`ScenarioService` runs `ScenarioDefinitionValidator` itself so that Bean Validation violations and
+cross-reference problems are reported together in **one** 422 `INVALID_SCENARIO` response with a field error per
+rule. The same validator guards every entry point — seed files, the generator, the editor, AI variations and
+version restore.
+
+### 3.2 Transaction design
 | Operation | Transactions | Why |
 |-----------|-------------|-----|
-| Normal reads/writes | one `@Transactional` service method | standard unit of work |
-| Complete simulation | TX1 (state + score + result + AI snapshot) → AI call (no TX) → TX2 (attach feedback) | no DB connection/locks held during a slow external call; the score is saved even if the AI fails |
-| Hint / question | TX1 (ownership, state, snapshot) → AI call → TX2 (hint counter) | same; the penalty is applied only when a hint was delivered |
-| Concurrency | `@Version lock_version` on `simulations`, partial unique index for one active attempt | double clicks or parallel tabs cannot corrupt the state |
-
-`open-in-view` is disabled, so every DTO is mapped inside the service transaction. Methods that need a transaction
-inside the same class use `TransactionTemplate` explicitly (self-invocation of `@Transactional` would bypass the
-proxy — see implementation log Step 5).
-
-### 3.2 Error handling
-`GlobalExceptionHandler` maps `ApiException` (status + code), Bean Validation errors (400 `VALIDATION_FAILED` with
-field errors), malformed JSON (400), unknown routes (404) and unexpected exceptions (500 without internal details,
-full stack trace in the log). Spring Security's entry point and access-denied handler write the same JSON body for
-401/403.
+| CRUD, graph, evaluate(id), versions | one `@Transactional` service method; DTO mapping happens inside it | `open-in-view` is disabled, so lazy children must be read before the transaction ends |
+| Generate | template + optional AI call **outside** any transaction → `TransactionTemplate` only around the save | no DB connection or locks held during a slow external call |
+| Update | children are cleared and the session **flushed** before re-adding | Hibernate executes inserts before orphan deletes; flushing avoids unique-key collisions between removed and re-added rows |
+| Publish | one transaction; the publishing gates are **re-evaluated server-side** on the stored draft before the version row is written | a client cannot publish a draft the analysis would reject |
 
 ### 3.3 Module summary
 
 | Module | Main classes |
 |--------|-------------|
 | security | `SecurityConfig`, `JwtConfig`, `JwtTokenService`, `AuthUser`, `AuthUserArgumentResolver` |
-| auth / user | `AuthController`, `AuthService`, `User`, `Role`, `UserRepository`, `DemoDataInitializer` |
-| scenario | `Scenario` (+5 child entities), `ScenarioDefinition`, `ScenarioDefinitionValidator`, `ScenarioMapper`, `ScenarioService`, `ScenarioSeeder`, `ScenarioController` |
-| simulation | `Simulation` (+4 child entities, `SimulationResult`), `SimulationStateMachine`, `SimulationEngine`, `SimulationService`, `SimulationAssistantService`, `SimulationSnapshotFactory`, `SimulationMapper`, `SimulationController` |
-| scoring | `ScoringEngine`, `ScoreResult` |
-| ai | `AiProvider`, `ClaudeAiProvider`, `MockAiProvider`, `AiConfig`, `AiGateway`, `AiPromptBuilder`, `AiOutputValidator`, `AiInteraction`, `TutorService`, `ScenarioVariationService`, `TranslationService` |
-| progress | `ProgressService`, `ProgressController`, `ProgressStats` |
-| analytics | `AnalyticsService` (SQL via `JdbcClient`) |
-| admin | `AdminService`, `AdminController` |
+| auth / user | `AuthController`, `AuthService`, `User`, `Role` (ADMIN only), `UserRepository`, `DemoDataInitializer` |
+| scenario | `Scenario` (+5 child entities), `ScenarioVersion`, `ScenarioDefinition`, `ScenarioDefinitionValidator`, `ScenarioMapper`, `ScenarioService` |
+| authoring | `AuthoringController`, `AuthoringService`, `ScenarioGeneratorService`, `ScenarioGraph`, `ScenarioAnalyzer`, `ScenarioTestRunner`, `QualityScorer`, `ScenarioSeeder` |
+| scoring | `ScoringEngine`, `ScoreResult` — the deterministic rules the test runner replays and the learner module will apply |
+| ai | `AiProvider`, `ClaudeAiProvider`, `MockAiProvider`, `AiConfig`, `AiGateway`, `AiPromptBuilder`, `AiOutputValidator`, `AiInteraction`, `ScenarioVariationService`, `TranslationService`, `TranslationController` |
 
-### 3.4 Seed data
-`ScenarioSeeder` imports `resources/scenarios/*.json` on start-up if the slug does not exist (validated like admin
-input; an invalid file stops the start-up). `DemoDataInitializer` creates demo accounts only when their passwords are
-provided through environment variables.
+### 3.4 Start-up data
+`ScenarioSeeder` imports `resources/scenarios/*.json` when the slug does not exist yet and **publishes each seed as
+version 1** (a seed that fails the publishing gate stays a draft); the same files double as the generator's
+templates. An invalid seed file stops the start-up (fail fast). `DemoDataInitializer` creates one admin account
+only when its password is provided through environment variables.

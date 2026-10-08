@@ -10,7 +10,10 @@ CyberSim is the **administrator's scenario-authoring platform**: an admin genera
 developed by another team member and consumes the published versions (see
 [docs/en/17-admin-authoring-platform.md](docs/en/17-admin-authoring-platform.md) for the scope change). The
 interface is available in English and Armenian (EN / ՀԱՅ switch in the app bar), and scenario text can be translated
-to Armenian on request without storing anything. Everything runs locally; nothing touches real external systems.
+to Armenian on request without storing anything. The learner module (the other team member's project) integrates over a service API: it reads published
+scenario versions, submits completed student exams, and this platform **verifies every submission by replaying
+it** with the deterministic scoring rules; administrators can run a per-exam **AI review** whose feedback flows
+back to the learner module. Everything runs locally; nothing touches real external systems.
 
 | | |
 |---|---|
@@ -18,7 +21,7 @@ to Armenian on request without storing anything. Everything runs locally; nothin
 | Frontend | React 19, TypeScript, Vite 8, MUI 9, React Router 8, Axios, react-i18next (English + Armenian UI) |
 | AI | Claude API via the official Anthropic Java SDK (default model `claude-opus-5-5`) + offline mock provider; used to polish generated scenarios, create variations and translate |
 | Infrastructure | Docker Compose (PostgreSQL, backend, nginx frontend, optional LocalStack) |
-| Tests | JUnit 5, Mockito, Spring Boot Test, MockMvc, Testcontainers — 63 backend tests |
+| Tests | JUnit 5, Mockito, Spring Boot Test, MockMvc, Testcontainers — 76 backend tests |
 
 ## Quick start (Docker)
 

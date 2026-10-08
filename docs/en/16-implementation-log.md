@@ -319,3 +319,37 @@ seed scenarios published as v1, frontend served).
 - Frontend: generator page, review/publish tab, SVG graph, versions tab; EN + HY strings.
 - **Not verified:** the frontend was not exercised in a browser; the real Claude call for generation polish was not
   run (no API key). `@mui/x-charts` is now an unused dependency.
+
+## Step 16 — Documentation realigned to the admin-only scope (2026-10-09)
+
+**Completed:** after the scope change (previous step) only documents 01, 16 and 17 had been updated; documents
+02–15 and `thesis-figures.md` still described the removed learner runtime. All of them — English and Armenian —
+were rewritten against the actual code: 02 maps the original requirements to the authoring realisation and marks
+learner-side items as reassigned; 04 adds ADR-10 (immutable `scenario_versions` as the hand-over contract);
+05/06/07 document the real schema, API surface and UI; 08 was repurposed as the scenario execution model and test
+runner; 09 covers the three remaining AI tasks; 11 fixes the test inventory (8 classes, 63 executions — 60
+`@Test` plus one `@ParameterizedTest` over the three seed scenarios); 12 adds the single-migration/`down -v`
+policy; 13 is a stub pointing at the learner module; 14 is a task-oriented admin manual. A root `CLAUDE.md` was
+added for AI-assisted sessions. The stack was rebuilt from a clean volume and the full authoring pipeline
+(generate → evaluate 97/EXCELLENT → publish v1) was verified live.
+
+## Step 17 — Learner-module service API and AI exam review (2026-10-09)
+
+**Completed (ADR-13):**
+- `/api/learner/**` service API behind an `X-API-Key` (`LEARNER_API_KEY`, constant-time compare; 503 when
+  unconfigured). The learner module reads the published catalogue and definitions, submits completed attempts
+  and reads results and feedback back. Admin JWTs and the service key cannot cross into each other's surface.
+- Server-side verification: a submission is replayed against the pinned published version using the test
+  runner's `play` (made public, with a hints parameter) and the deterministic `ScoringEngine`; the platform's
+  score is authoritative, a claimed score only sets `scoreMatches`. New `student_attempts` table.
+- Admin **Student exams** page with claimed-vs-verified comparison and a per-attempt **Run AI review** button:
+  new `AiTask.REVIEW` builds an advisory rating/message/strengths/mistakes/recommendations around the verified
+  grade, validated (rating 0–100, capped lists) with the usual mock fallback, stored and served to the learner
+  module. Two demo submissions are seeded (one perfect, one failing with a false claimed score).
+- 13 new tests (6 unit, 7 integration) → **76 total**; the integration test covers the full round trip
+  including both negative auth directions.
+
+**Verified live:** catalogue and definition reads with the real key, 401/503 paths, a submission verified at
+33/100 against a claimed 40 (flagged), `UNKNOWN_ACTION` rejection, and the review button producing and storing
+feedback that the learner endpoint then returned.
+
