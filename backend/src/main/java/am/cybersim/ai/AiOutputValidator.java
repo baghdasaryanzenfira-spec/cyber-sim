@@ -1,5 +1,6 @@
 package am.cybersim.ai;
 
+import am.cybersim.ai.dto.AiReview;
 import am.cybersim.scenario.dto.ScenarioDefinition;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
@@ -39,6 +40,25 @@ public class AiOutputValidator {
      * limit is an absolute one; a response far longer than the source means the model explained instead of
      * translating and is rejected.
      */
+    /**
+     * The review is advisory text shown to administrators and forwarded to the learner module, so the same
+     * discipline as every AI output: parsed, clamped in size, and a rating outside 0–100 is treated as a failed
+     * response (the gateway then falls back to the deterministic mock review).
+     */
+    public AiReview validateReview(String json) {
+        AiReview review = parse(json, AiReview.class);
+        if (review.rating() < 0 || review.rating() > 100) {
+            throw new AiProviderException("Review rating " + review.rating() + " is outside 0-100");
+        }
+        return new AiReview(review.rating(), validateText(review.message(), 2000),
+                validateItems(review.strengths()), validateItems(review.mistakes()),
+                validateItems(review.recommendations()));
+    }
+
+    private static java.util.List<String> validateItems(java.util.List<String> items) {
+        return items.stream().limit(5).map(i -> validateText(i, 300)).toList();
+    }
+
     public String validateTranslation(String text, String source) {
         String clean = validateText(text, MAX_TRANSLATION_CHARS);
         if (clean.length() > Math.max(200, source.length() * 3)) {

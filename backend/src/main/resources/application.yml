@@ -65,6 +65,8 @@ app:
     server-side-fallback: ${AI_SERVER_SIDE_FALLBACK:true}
   scenarios:
     seed-enabled: ${APP_SCENARIO_SEED_ENABLED:true}
+  learner:
+    api-key: ${LEARNER_API_KEY:}
 
 logging:
   level:

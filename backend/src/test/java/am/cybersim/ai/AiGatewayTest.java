@@ -45,7 +45,7 @@ class AiGatewayTest {
 
     AiGateway gateway(AiProvider primary, int timeoutSeconds) {
         var ai = new AppProperties.Ai("claude", "test-key", "claude-opus-5-5", "low", timeoutSeconds, 1024, false);
-        var props = new AppProperties(null, null, null, ai, null);
+        var props = new AppProperties(null, null, null, ai, null, null);
         return new AiGateway(primary, mockProvider, promptBuilder, repository, props, Clock.fixed(NOW, ZoneOffset.UTC));
     }
 

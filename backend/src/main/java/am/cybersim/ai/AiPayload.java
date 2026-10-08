@@ -1,5 +1,6 @@
 package am.cybersim.ai;
 
+import am.cybersim.ai.dto.ReviewSubject;
 import am.cybersim.scenario.dto.ScenarioDefinition;
 
 /**
@@ -33,6 +34,16 @@ public sealed interface AiPayload {
     record Translation(String text, String languageName) implements AiPayload {
         public AiTask task() {
             return AiTask.TRANSLATION;
+        }
+    }
+
+    /**
+     * Review one submitted exam attempt against the scenario it was played on (ADR-13). The subject carries only
+     * platform-produced facts (replayed steps, deterministic score, missed actions) — never learner free text.
+     */
+    record Review(ScenarioDefinition definition, ReviewSubject subject) implements AiPayload {
+        public AiTask task() {
+            return AiTask.REVIEW;
         }
     }
 }

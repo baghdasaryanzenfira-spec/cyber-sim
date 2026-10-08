@@ -125,11 +125,16 @@ public class ScenarioTestRunner {
 
     // ------------------------------------------------------------------ in-memory play
 
-    private record Play(List<Step> steps, ScoreResult score, int evidenceRevealed, int evidenceTotal,
-                        Set<String> changedResources) {
+    /** One deterministic replay; also reused by the learner-integration verifier, so it is public. */
+    public record Play(List<Step> steps, ScoreResult score, int evidenceRevealed, int evidenceTotal,
+                       Set<String> changedResources) {
     }
 
-    private Play play(ScenarioDefinition def, List<ActionDef> order) {
+    public Play play(ScenarioDefinition def, List<ActionDef> order) {
+        return play(def, order, 0);
+    }
+
+    public Play play(ScenarioDefinition def, List<ActionDef> order, int hintsUsed) {
         Set<String> applied = new HashSet<>();
         Set<String> revealed = new HashSet<>();
         def.events().stream().filter(e -> ScenarioGraph.blank(e.revealedByActionKey())).forEach(e -> revealed.add(e.key()));
@@ -165,7 +170,7 @@ public class ScenarioTestRunner {
                     newlyRevealed, effect));
             performed.add(new PerformedAction(a.key(), a.label(), a.category(), a.outcome(), duplicate, outOfOrder, points));
         }
-        ScoreResult score = scoring.score(def.actions(), performed, 0, def.hintPenalty());
+        ScoreResult score = scoring.score(def.actions(), performed, hintsUsed, def.hintPenalty());
         Set<String> changed = new HashSet<>();
         status.forEach((k, v) -> {
             if (!v.equals(initial.get(k))) {

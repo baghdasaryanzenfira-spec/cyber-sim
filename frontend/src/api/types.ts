@@ -274,3 +274,82 @@ export interface VersionDetail {
   definition: ScenarioDefinition
   quality: QualityReport
 }
+
+// ---------------------------------------------------------------- learner-module exams (ADR-13)
+
+export interface SubmittedAction {
+  actionKey: string
+  note?: string | null
+}
+
+export interface VerificationStep {
+  sequence: number
+  actionKey: string
+  label: string
+  outcome: ActionOutcome
+  points: number
+  outOfOrder: boolean
+  duplicate: boolean
+}
+
+export interface MissedExamAction {
+  actionKey: string
+  label: string
+  category: ActionCategory
+  points: number
+  explanation: string
+}
+
+export interface Verification {
+  scorePercent: number
+  rawScore: number
+  maxScore: number
+  hintsUsed: number
+  hintPenaltyTotal: number
+  evidenceRevealed: number
+  evidenceTotal: number
+  steps: VerificationStep[]
+  missedActions: MissedExamAction[]
+}
+
+export interface StoredReview {
+  rating: number
+  message: string
+  strengths: string[]
+  mistakes: string[]
+  recommendations: string[]
+  source: AiSource
+}
+
+export interface ExamRow {
+  id: number
+  externalId: string
+  studentRef: string
+  studentName?: string | null
+  scenarioId: number
+  scenarioTitle: string
+  scenarioVersion: number
+  claimedScore?: number | null
+  verifiedScore: number
+  scoreMatches?: boolean | null
+  reviewed: boolean
+  reviewRating?: number | null
+  hintsUsed: number
+  submittedAt: string
+}
+
+export interface ExamDetail {
+  attempt: ExamRow
+  submittedActions: SubmittedAction[]
+  verification: Verification
+  review?: StoredReview | null
+  reviewedAt?: string | null
+}
+
+export interface ExamPage {
+  items: ExamRow[]
+  totalItems: number
+  page: number
+  size: number
+}
+

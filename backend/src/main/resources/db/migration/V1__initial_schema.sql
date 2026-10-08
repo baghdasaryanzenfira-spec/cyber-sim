@@ -156,6 +156,38 @@ CREATE TABLE scenario_versions (
 );
 
 -- ---------------------------------------------------------------------
+-- Student attempts, submitted by the learner module through the service API.
+-- The learner module's score is recorded but never trusted: 'verification'
+-- holds this platform's own deterministic replay of the submitted actions.
+-- ---------------------------------------------------------------------
+CREATE TABLE student_attempts (
+    id                BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    scenario_id       BIGINT       NOT NULL REFERENCES scenarios (id) ON DELETE CASCADE,
+    scenario_version  INT          NOT NULL,
+    external_id       VARCHAR(100) NOT NULL,
+    student_ref       VARCHAR(100) NOT NULL,
+    student_name      VARCHAR(200),
+    started_at        TIMESTAMPTZ,
+    completed_at      TIMESTAMPTZ  NOT NULL,
+    hints_used        INT          NOT NULL DEFAULT 0,
+    actions           JSONB        NOT NULL,
+    claimed_score     INT,
+    verified_score    INT          NOT NULL,
+    score_matches     BOOLEAN,
+    verification      JSONB        NOT NULL,
+    review            JSONB,
+    reviewed_at       TIMESTAMPTZ,
+    reviewed_by       BIGINT       REFERENCES users (id) ON DELETE SET NULL,
+    submitted_at      TIMESTAMPTZ  NOT NULL,
+    CONSTRAINT uq_student_attempts_external UNIQUE (external_id),
+    CONSTRAINT ck_attempt_verified CHECK (verified_score BETWEEN 0 AND 100),
+    CONSTRAINT ck_attempt_claimed CHECK (claimed_score IS NULL OR claimed_score BETWEEN 0 AND 100),
+    CONSTRAINT ck_attempt_hints CHECK (hints_used >= 0)
+);
+CREATE INDEX ix_student_attempts_scenario ON student_attempts (scenario_id);
+CREATE INDEX ix_student_attempts_submitted ON student_attempts (submitted_at DESC);
+
+-- ---------------------------------------------------------------------
 -- AI audit log
 -- ---------------------------------------------------------------------
 CREATE TABLE ai_interactions (
@@ -172,7 +204,7 @@ CREATE TABLE ai_interactions (
     input_tokens      INT,
     output_tokens     INT,
     created_at        TIMESTAMPTZ NOT NULL,
-    CONSTRAINT ck_ai_type CHECK (interaction_type IN ('VARIATION', 'GENERATION', 'TRANSLATION')),
+    CONSTRAINT ck_ai_type CHECK (interaction_type IN ('VARIATION', 'GENERATION', 'TRANSLATION', 'REVIEW')),
     CONSTRAINT ck_ai_provider CHECK (provider IN ('CLAUDE', 'MOCK')),
     CONSTRAINT ck_ai_status CHECK (status IN ('SUCCESS', 'FALLBACK', 'ERROR'))
 );

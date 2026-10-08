@@ -1,4 +1,5 @@
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh'
+import FactCheckIcon from '@mui/icons-material/FactCheck'
 import DashboardIcon from '@mui/icons-material/Dashboard'
 import ListAltIcon from '@mui/icons-material/ListAlt'
 import LogoutIcon from '@mui/icons-material/Logout'
@@ -26,6 +27,7 @@ const adminNav = (t: (key: string) => string): NavItem[] => [
   { to: '/admin', label: t('nav.dashboard'), icon: <DashboardIcon />, end: true },
   { to: '/admin/scenarios', label: t('nav.scenarios'), icon: <ListAltIcon />, end: true },
   { to: '/admin/generate', label: t('nav.generate'), icon: <AutoFixHighIcon /> },
+  { to: '/admin/exams', label: t('nav.exams'), icon: <FactCheckIcon /> },
 ]
 
 function NavList({ items }: { items: NavItem[] }) {

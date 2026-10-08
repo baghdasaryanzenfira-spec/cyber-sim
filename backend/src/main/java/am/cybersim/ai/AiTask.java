@@ -4,5 +4,6 @@ package am.cybersim.ai;
 public enum AiTask {
     VARIATION,
     GENERATION,
-    TRANSLATION
+    TRANSLATION,
+    REVIEW
 }

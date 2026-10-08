@@ -12,6 +12,8 @@ import type {
   User,
   VersionDetail,
   VersionSummary,
+  ExamDetail,
+  ExamPage,
 } from './types'
 
 const data = <T>(p: Promise<{ data: T }>) => p.then((r) => r.data)
@@ -28,6 +30,13 @@ export const aiApi = {
 }
 
 const base = (id: number) => `/admin/scenarios/${id}`
+
+export const examApi = {
+  list: (params: { scenarioId?: number; page?: number; size?: number }) =>
+    data(http.get<ExamPage>('/admin/exams', { params })),
+  get: (id: number) => data(http.get<ExamDetail>(`/admin/exams/${id}`)),
+  review: (id: number) => data(http.post<ExamDetail>(`/admin/exams/${id}/review`)),
+}
 
 export const adminApi = {
   scenarios: () => data(http.get<AdminScenarioSummary[]>('/admin/scenarios')),

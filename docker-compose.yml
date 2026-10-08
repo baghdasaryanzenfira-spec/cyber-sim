@@ -44,6 +44,7 @@ services:
       AI_MAX_TOKENS: ${AI_MAX_TOKENS:-2048}
       AI_SERVER_SIDE_FALLBACK: ${AI_SERVER_SIDE_FALLBACK:-true}
       APP_SCENARIO_SEED_ENABLED: ${APP_SCENARIO_SEED_ENABLED:-true}
+      LEARNER_API_KEY: ${LEARNER_API_KEY:-}
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     restart: unless-stopped

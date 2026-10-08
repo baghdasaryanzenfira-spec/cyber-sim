@@ -16,7 +16,8 @@ public record AppProperties(
         Cors cors,
         Demo demo,
         Ai ai,
-        Scenarios scenarios) {
+        Scenarios scenarios,
+        Learner learner) {
 
     public record Jwt(
             String secret,
@@ -44,5 +45,9 @@ public record AppProperties(
     }
 
     public record Scenarios(@DefaultValue("true") boolean seedEnabled) {
+    }
+
+    /** Service credentials of the learner module; blank = the integration endpoints answer 503. */
+    public record Learner(String apiKey) {
     }
 }

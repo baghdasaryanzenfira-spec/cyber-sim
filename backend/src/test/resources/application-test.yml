@@ -8,3 +8,5 @@ app:
     provider: mock
   scenarios:
     seed-enabled: true
+  learner:
+    api-key: test-learner-key
